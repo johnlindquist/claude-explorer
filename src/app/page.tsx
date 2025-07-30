@@ -24,9 +24,9 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
+      <div className="min-h-screen bg-gray-900 p-8">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Loading conversations...</h1>
+          <h1 className="text-3xl font-bold text-gray-100 mb-8">Loading conversations...</h1>
         </div>
       </div>
     );
@@ -34,36 +34,36 @@ export default function Home() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
+      <div className="min-h-screen bg-gray-900 p-8">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-red-600 mb-8">{error}</h1>
+          <h1 className="text-3xl font-bold text-red-400 mb-8">{error}</h1>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-900 p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Conversations</h1>
+        <h1 className="text-3xl font-bold text-gray-100 mb-8">Conversations</h1>
         
         <div className="grid gap-4">
           {conversations.map((conv) => (
             <Link
               key={conv.id}
               href={`/conversation/${conv.id}`}
-              className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 block"
+              className="bg-gray-800 rounded-lg shadow-sm hover:shadow-md hover:bg-gray-750 transition-all p-6 block border border-gray-700"
             >
               <div className="flex justify-between items-start mb-2">
-                <h2 className="text-xl font-semibold text-gray-800 flex-1">
+                <h2 className="text-xl font-semibold text-gray-100 flex-1">
                   {conv.summary.summary}
                 </h2>
-                <span className="text-sm text-gray-500 ml-4">
+                <span className="text-sm text-gray-400 ml-4">
                   {conv.messageCount} messages
                 </span>
               </div>
               
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-500">
                 <p>ID: {conv.id.substring(0, 8)}...</p>
                 <p>Last updated: {new Date(conv.lastUpdated).toLocaleString()}</p>
               </div>
@@ -72,7 +72,7 @@ export default function Home() {
         </div>
         
         {conversations.length === 0 && (
-          <p className="text-gray-600 text-center py-8">No conversations found</p>
+          <p className="text-gray-400 text-center py-8">No conversations found</p>
         )}
       </div>
     </div>
