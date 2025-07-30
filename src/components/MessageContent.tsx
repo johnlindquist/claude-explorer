@@ -100,6 +100,37 @@ export default function MessageContent({ message }: MessageContentProps) {
               );
             }
             
+            if (item.type === "thinking" && item.thinking) {
+              const shouldTruncate = !expanded && item.thinking.length > 500;
+              const displayContent = shouldTruncate ? item.thinking.substring(0, 500) + "..." : item.thinking;
+              
+              return (
+                <div key={index} className="bg-accent/30 rounded-md p-3 border border-accent/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xl">🧠</span>
+                    <span className="text-sm font-semibold text-accent-foreground">
+                      Thinking
+                    </span>
+                  </div>
+                  <div className="text-sm text-muted-foreground whitespace-pre-wrap font-mono">
+                    {displayContent}
+                  </div>
+                  {item.thinking.length > 500 && (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setExpanded(!expanded);
+                      }}
+                      className="text-primary hover:underline text-xs mt-2"
+                    >
+                      {expanded ? "Show less" : "Show more"}
+                    </button>
+                  )}
+                </div>
+              );
+            }
+            
             if (item.type === "tool_use") {
               const toolIcons: Record<string, string> = {
                 'Bash': '💻',

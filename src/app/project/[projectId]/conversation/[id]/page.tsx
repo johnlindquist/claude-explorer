@@ -16,6 +16,7 @@ export default function ConversationPage() {
   const [showTools, setShowTools] = useState(true);
   const [showSidechains, setShowSidechains] = useState(true);
   const [showSystem, setShowSystem] = useState(true);
+  const [showThinking, setShowThinking] = useState(true);
 
   useEffect(() => {
     if (params.projectId && params.id) {
@@ -81,6 +82,22 @@ export default function ConversationPage() {
       }
     }
     
+    // Handle thinking messages
+    if (!showThinking && message.message) {
+      const content = message.message.content;
+      if (Array.isArray(content)) {
+        const hasThinking = content.some(item => item.type === "thinking");
+        if (hasThinking) {
+          // Check if message has other visible content
+          const hasOtherContent = content.some(item => 
+            (item.type === "text" && item.text?.trim()) ||
+            (showTools && (item.type === "tool_use" || item.type === "tool_result"))
+          );
+          if (!hasOtherContent) return false;
+        }
+      }
+    }
+    
     // For regular messages, check if they have actual content
     if (message.type === "user" && message.message) {
       const content = message.message.content;
@@ -108,6 +125,14 @@ export default function ConversationPage() {
     return false;
   }).length;
   const systemMessageCount = conversation.messages.filter(m => m.type === "system").length;
+  const thinkingMessageCount = conversation.messages.filter(m => {
+    if (!m.message) return false;
+    const content = m.message.content;
+    if (Array.isArray(content)) {
+      return content.some(item => item.type === "thinking");
+    }
+    return false;
+  }).length;
 
   return (
     <div className="min-h-screen p-4">
@@ -162,6 +187,18 @@ export default function ConversationPage() {
               )}
             >
               ⚙️ System ({systemMessageCount})
+            </button>
+            
+            <button
+              onClick={() => setShowThinking(!showThinking)}
+              className={cn(
+                "px-3 py-1 rounded-md text-xs transition-colors",
+                showThinking 
+                  ? "bg-primary text-primary-foreground" 
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+              )}
+            >
+              🧠 Thinking ({thinkingMessageCount})
             </button>
           </div>
         </div>
