@@ -33,8 +33,8 @@ export interface ConversationMessage {
   sessionId: string;
   version: string;
   gitBranch: string;
-  type: "user" | "assistant";
-  message: {
+  type: "user" | "assistant" | "system";
+  message?: {
     role: "user" | "assistant";
     content: MessageContent;
     id?: string;
@@ -49,10 +49,14 @@ export interface ConversationMessage {
       service_tier: string;
     };
   };
+  content?: string; // For system messages
+  isMeta?: boolean;
+  level?: string;
   uuid: string;
   timestamp: string;
   requestId?: string;
   toolUseResult?: any;
+  toolUseID?: string;
 }
 
 export type ConversationEntry = ConversationSummary | ConversationMessage;
