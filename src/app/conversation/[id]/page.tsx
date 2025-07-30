@@ -56,6 +56,24 @@ export default function ConversationPage() {
     );
   }
 
+  // Filter messages to show only meaningful content
+  const visibleMessages = conversation.messages.filter(message => {
+    // Always show assistant messages
+    if (message.type === "assistant") return true;
+    
+    // For user messages, check if they have actual text content
+    if (message.type === "user") {
+      const content = message.message.content;
+      if (typeof content === "string" && content.trim()) return true;
+      if (Array.isArray(content)) {
+        // Show if there's at least one text content
+        return content.some(item => item.type === "text" && item.text?.trim());
+      }
+    }
+    
+    return false;
+  });
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-5xl mx-auto">
@@ -71,16 +89,22 @@ export default function ConversationPage() {
           </h1>
           <div className="text-sm text-gray-600">
             <p>Session ID: {conversation.id}</p>
-            <p>{conversation.messageCount} messages</p>
+            <p>{conversation.messageCount} total messages ({visibleMessages.length} visible)</p>
             <p>Last updated: {new Date(conversation.lastUpdated).toLocaleString()}</p>
           </div>
         </div>
         
         <div className="space-y-4">
-          {conversation.messages.map((message) => (
+          {visibleMessages.map((message) => (
             <MessageContent key={message.uuid} message={message} />
           ))}
         </div>
+        
+        {visibleMessages.length === 0 && (
+          <div className="text-center text-gray-500 py-8">
+            No visible messages in this conversation
+          </div>
+        )}
       </div>
     </div>
   );
