@@ -36,9 +36,9 @@ export default function ConversationPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center">Loading conversation...</div>
+      <div className="min-h-screen bg-gray-900 p-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center text-gray-400">Loading conversation...</div>
         </div>
       </div>
     );
@@ -46,11 +46,11 @@ export default function ConversationPage() {
 
   if (error || !conversation) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center text-red-600">{error || "Conversation not found"}</div>
+      <div className="min-h-screen bg-gray-900 p-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center text-red-400">{error || "Conversation not found"}</div>
           <div className="text-center mt-4">
-            <Link href="/" className="text-blue-600 hover:underline">
+            <Link href="/" className="text-blue-400 hover:text-blue-300 hover:underline">
               Back to conversations
             </Link>
           </div>
@@ -107,31 +107,30 @@ export default function ConversationPage() {
   const systemMessageCount = conversation.messages.filter(m => m.type === "system").length;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-5xl mx-auto">
-        <div className="mb-6">
-          <Link href="/" className="text-blue-600 hover:underline text-sm">
+    <div className="min-h-screen bg-gray-900 p-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-4">
+          <Link href="/" className="text-blue-400 hover:text-blue-300 hover:underline text-sm">
             ← Back to conversations
           </Link>
         </div>
         
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+        <div className="bg-gray-800 rounded-lg shadow-lg p-4 mb-4 border border-gray-700">
+          <h1 className="text-xl font-bold text-gray-100 mb-2">
             {conversation.summary.summary}
           </h1>
-          <div className="text-sm text-gray-600">
-            <p>Session ID: {conversation.id}</p>
-            <p>{conversation.messageCount} total messages ({visibleMessages.length} visible)</p>
-            <p>Last updated: {new Date(conversation.lastUpdated).toLocaleString()}</p>
+          <div className="text-xs text-gray-400 space-y-1">
+            <p>Session: {conversation.id.substring(0, 8)}...</p>
+            <p>{conversation.messageCount} messages • {new Date(conversation.lastUpdated).toLocaleDateString()}</p>
           </div>
           
-          <div className="mt-4 flex gap-2 flex-wrap">
+          <div className="mt-3 flex gap-2 flex-wrap">
             <button
               onClick={() => setShowTools(!showTools)}
-              className={`px-3 py-1 rounded text-sm ${
+              className={`px-2 py-1 rounded text-xs transition-colors ${
                 showTools 
-                  ? "bg-purple-600 text-white" 
-                  : "bg-gray-200 text-gray-700"
+                  ? "bg-purple-700 text-purple-100" 
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
               }`}
             >
               🔧 Tools ({toolMessageCount})
@@ -139,10 +138,10 @@ export default function ConversationPage() {
             
             <button
               onClick={() => setShowSidechains(!showSidechains)}
-              className={`px-3 py-1 rounded text-sm ${
+              className={`px-2 py-1 rounded text-xs transition-colors ${
                 showSidechains 
-                  ? "bg-indigo-600 text-white" 
-                  : "bg-gray-200 text-gray-700"
+                  ? "bg-indigo-700 text-indigo-100" 
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
               }`}
             >
               🌟 Sidechains ({sideChainCount})
@@ -150,10 +149,10 @@ export default function ConversationPage() {
             
             <button
               onClick={() => setShowSystem(!showSystem)}
-              className={`px-3 py-1 rounded text-sm ${
+              className={`px-2 py-1 rounded text-xs transition-colors ${
                 showSystem 
-                  ? "bg-yellow-600 text-white" 
-                  : "bg-gray-200 text-gray-700"
+                  ? "bg-yellow-700 text-yellow-100" 
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
               }`}
             >
               ⚙️ System ({systemMessageCount})
@@ -161,7 +160,7 @@ export default function ConversationPage() {
           </div>
         </div>
         
-        <div className="space-y-4">
+        <div className="space-y-2">
           {visibleMessages.map((message) => (
             <MessageContent key={message.uuid} message={message} />
           ))}
