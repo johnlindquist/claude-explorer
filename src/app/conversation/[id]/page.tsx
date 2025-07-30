@@ -12,6 +12,9 @@ export default function ConversationPage() {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showTools, setShowTools] = useState(true);
+  const [showSidechains, setShowSidechains] = useState(true);
+  const [showSystem, setShowSystem] = useState(true);
 
   useEffect(() => {
     if (params.id) {
@@ -56,23 +59,52 @@ export default function ConversationPage() {
     );
   }
 
-  // Filter messages to show only meaningful content
+  // Filter messages based on visibility settings
   const visibleMessages = conversation.messages.filter(message => {
-    // Always show assistant messages
-    if (message.type === "assistant") return true;
+    // Handle system messages
+    if (message.type === "system" && !showSystem) return false;
     
-    // For user messages, check if they have actual text content
-    if (message.type === "user") {
+    // Handle sidechain messages
+    if (message.isSidechain && !showSidechains) return false;
+    
+    // Handle tool-only messages
+    if (!showTools && message.type === "user" && message.message) {
       const content = message.message.content;
-      if (typeof content === "string" && content.trim()) return true;
       if (Array.isArray(content)) {
-        // Show if there's at least one text content
-        return content.some(item => item.type === "text" && item.text?.trim());
+        const hasOnlyTools = content.every(item => 
+          item.type === "tool_use" || item.type === "tool_result"
+        );
+        if (hasOnlyTools) return false;
       }
     }
     
-    return false;
+    // For regular messages, check if they have actual content
+    if (message.type === "user" && message.message) {
+      const content = message.message.content;
+      if (typeof content === "string" && content.trim()) return true;
+      if (Array.isArray(content)) {
+        // Show if there's at least one text content or if tools are visible
+        return content.some(item => 
+          (item.type === "text" && item.text?.trim()) ||
+          (showTools && (item.type === "tool_use" || item.type === "tool_result"))
+        );
+      }
+    }
+    
+    // Always show assistant messages and system messages (if enabled)
+    return message.type === "assistant" || message.type === "system";
   });
+
+  const sideChainCount = conversation.messages.filter(m => m.isSidechain).length;
+  const toolMessageCount = conversation.messages.filter(m => {
+    if (!m.message) return false;
+    const content = m.message.content;
+    if (Array.isArray(content)) {
+      return content.some(item => item.type === "tool_use" || item.type === "tool_result");
+    }
+    return false;
+  }).length;
+  const systemMessageCount = conversation.messages.filter(m => m.type === "system").length;
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -92,6 +124,41 @@ export default function ConversationPage() {
             <p>{conversation.messageCount} total messages ({visibleMessages.length} visible)</p>
             <p>Last updated: {new Date(conversation.lastUpdated).toLocaleString()}</p>
           </div>
+          
+          <div className="mt-4 flex gap-2 flex-wrap">
+            <button
+              onClick={() => setShowTools(!showTools)}
+              className={`px-3 py-1 rounded text-sm ${
+                showTools 
+                  ? "bg-purple-600 text-white" 
+                  : "bg-gray-200 text-gray-700"
+              }`}
+            >
+              🔧 Tools ({toolMessageCount})
+            </button>
+            
+            <button
+              onClick={() => setShowSidechains(!showSidechains)}
+              className={`px-3 py-1 rounded text-sm ${
+                showSidechains 
+                  ? "bg-indigo-600 text-white" 
+                  : "bg-gray-200 text-gray-700"
+              }`}
+            >
+              🌟 Sidechains ({sideChainCount})
+            </button>
+            
+            <button
+              onClick={() => setShowSystem(!showSystem)}
+              className={`px-3 py-1 rounded text-sm ${
+                showSystem 
+                  ? "bg-yellow-600 text-white" 
+                  : "bg-gray-200 text-gray-700"
+              }`}
+            >
+              ⚙️ System ({systemMessageCount})
+            </button>
+          </div>
         </div>
         
         <div className="space-y-4">
@@ -102,7 +169,7 @@ export default function ConversationPage() {
         
         {visibleMessages.length === 0 && (
           <div className="text-center text-gray-500 py-8">
-            No visible messages in this conversation
+            No visible messages with current filters
           </div>
         )}
       </div>
