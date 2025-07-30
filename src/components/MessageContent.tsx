@@ -2,6 +2,7 @@
 
 import { ConversationMessage } from "@/lib/types";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface MessageContentProps {
   message: ConversationMessage;
@@ -36,7 +37,7 @@ export default function MessageContent({ message }: MessageContentProps) {
                 e.preventDefault();
                 setExpanded(!expanded);
               }}
-              className="text-blue-400 hover:text-blue-300 text-xs mt-1"
+              className="text-primary hover:underline text-xs mt-1"
             >
               {expanded ? "Show less" : "Show more"}
             </button>
@@ -48,7 +49,7 @@ export default function MessageContent({ message }: MessageContentProps) {
     // Handle array content (including tool uses)
     if (Array.isArray(content)) {
       return (
-        <div className="space-y-1">
+        <div className="space-y-2">
           {content.map((item, index) => {
             if (item.type === "text" && item.text) {
               const shouldTruncate = !expanded && item.text.length > 200;
@@ -65,7 +66,7 @@ export default function MessageContent({ message }: MessageContentProps) {
                         e.preventDefault();
                         setExpanded(!expanded);
                       }}
-                      className="text-blue-400 hover:text-blue-300 text-xs mt-1"
+                      className="text-primary hover:underline text-xs mt-1"
                     >
                       {expanded ? "Show less" : "Show more"}
                     </button>
@@ -76,10 +77,21 @@ export default function MessageContent({ message }: MessageContentProps) {
             
             if (item.type === "tool_use") {
               return (
-                <div key={index} className="bg-purple-900 bg-opacity-30 rounded p-2 text-xs font-mono border border-purple-700">
-                  <span className="text-purple-300">🔧 {item.name}</span>
+                <div key={index} className="bg-secondary/50 rounded-md p-3 text-xs font-mono border border-border">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-secondary-foreground font-semibold">🔧 {item.name}</span>
+                  </div>
+                  {item.name === "Bash" && item.input?.command && (
+                    <div className="bg-background/50 rounded p-2 mt-2">
+                      <span className="text-muted-foreground">$ </span>
+                      <span className="text-foreground">{item.input.command}</span>
+                    </div>
+                  )}
                   {item.input?.file_path && (
-                    <span className="text-purple-400 ml-2 text-xs">📁 {item.input.file_path}</span>
+                    <div className="text-muted-foreground mt-1">📁 {item.input.file_path}</div>
+                  )}
+                  {item.input?.pattern && (
+                    <div className="text-muted-foreground mt-1">🔍 {item.input.pattern}</div>
                   )}
                 </div>
               );
@@ -87,14 +99,21 @@ export default function MessageContent({ message }: MessageContentProps) {
             
             if (item.type === "tool_result") {
               return (
-                <div key={index} className={`rounded p-2 text-xs border ${
+                <div key={index} className={cn(
+                  "rounded-md p-2 text-xs border",
                   item.is_error 
-                    ? "bg-red-900 bg-opacity-30 border-red-700 text-red-300" 
-                    : "bg-green-900 bg-opacity-30 border-green-700 text-green-300"
-                }`}>
+                    ? "bg-destructive/10 border-destructive/50 text-destructive" 
+                    : "bg-secondary/30 border-border text-secondary-foreground"
+                )}>
                   <span className="font-semibold">
                     {item.is_error ? "❌ Error" : "✅ Result"}
                   </span>
+                  {item.content && typeof item.content === "string" && item.content.length > 0 && (
+                    <div className="mt-1 text-xs font-mono overflow-auto max-h-40 bg-background/50 rounded p-2">
+                      {item.content.substring(0, 500)}
+                      {item.content.length > 500 && "..."}
+                    </div>
+                  )}
                 </div>
               );
             }
@@ -107,7 +126,7 @@ export default function MessageContent({ message }: MessageContentProps) {
     
     // Handle system messages or empty content
     return (
-      <div className="text-gray-500 italic text-sm">
+      <div className="text-muted-foreground italic text-sm">
         {message.type === "system" ? message.content || "[System message]" : "[No content]"}
       </div>
     );
@@ -115,21 +134,21 @@ export default function MessageContent({ message }: MessageContentProps) {
 
   // Determine message styling based on type and characteristics
   const getMessageStyle = () => {
-    let base = "rounded-lg p-3 message-hover cursor-pointer relative ";
+    let base = "rounded-lg p-3 transition-all cursor-pointer relative group ";
     
     if (message.type === "system") {
-      return base + "bg-yellow-900 bg-opacity-20 border border-yellow-700";
+      return base + "bg-accent/50 border border-accent";
     }
     
     if (message.isSidechain) {
       return base + (message.type === "user" 
-        ? "bg-indigo-900 bg-opacity-20 ml-8 border border-indigo-700" 
-        : "bg-indigo-900 bg-opacity-30 mr-8 border border-indigo-700");
+        ? "bg-primary/10 ml-8 border border-primary/20" 
+        : "bg-secondary/50 mr-8 border border-border");
     }
     
     return base + (message.type === "user" 
-      ? "bg-blue-900 bg-opacity-20 ml-8 border border-blue-700" 
-      : "bg-gray-800 mr-8 border border-gray-700");
+      ? "bg-primary/5 ml-8 border border-border" 
+      : "bg-secondary/30 mr-8 border border-border");
   };
 
   const getAvatar = () => {
@@ -138,10 +157,10 @@ export default function MessageContent({ message }: MessageContentProps) {
     return message.type === "user" ? "U" : "A";
   };
 
-  const getAvatarColor = () => {
-    if (message.type === "system") return "bg-yellow-700";
-    if (message.isSidechain) return message.type === "user" ? "bg-indigo-600" : "bg-indigo-700";
-    return message.type === "user" ? "bg-blue-600" : "bg-gray-600";
+  const getAvatarStyle = () => {
+    if (message.type === "system") return "bg-accent text-accent-foreground";
+    if (message.isSidechain) return message.type === "user" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground";
+    return message.type === "user" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground";
   };
 
   // Skip rendering if it's a tool result message from user with no other content
@@ -155,10 +174,10 @@ export default function MessageContent({ message }: MessageContentProps) {
   }
 
   return (
-    <div className={getMessageStyle()} onClick={copyToClipboard}>
+    <div className={cn(getMessageStyle(), "hover:shadow-md")} onClick={copyToClipboard}>
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0">
-          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white font-semibold text-xs ${getAvatarColor()}`}>
+          <div className={cn("w-6 h-6 rounded-full flex items-center justify-center font-semibold text-xs", getAvatarStyle())}>
             {getAvatar()}
           </div>
         </div>
@@ -166,31 +185,32 @@ export default function MessageContent({ message }: MessageContentProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             {message.isSidechain && (
-              <span className="text-xs bg-indigo-800 text-indigo-200 px-1.5 py-0.5 rounded">
+              <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">
                 Sidechain
               </span>
             )}
             {message.message?.model && (
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-muted-foreground">
                 {message.message.model}
               </span>
             )}
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-muted-foreground">
               {new Date(message.timestamp).toLocaleTimeString()}
             </span>
           </div>
           
-          <div className="text-gray-200">
+          <div className="text-foreground">
             {renderContent()}
           </div>
         </div>
         
         <button
-          className={`copy-button px-2 py-1 text-xs rounded transition-all ${
+          className={cn(
+            "opacity-0 group-hover:opacity-100 px-2 py-1 text-xs rounded transition-all",
             copied 
-              ? "bg-green-700 text-green-200" 
-              : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-          }`}
+              ? "bg-primary text-primary-foreground" 
+              : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+          )}
           onClick={(e) => {
             e.stopPropagation();
             copyToClipboard();
