@@ -63,12 +63,8 @@ export async function GET(
             }
           }
         } else {
-          // No summary, create a basic one
-          summary = {
-            type: 'conversation.summary',
-            summary: 'Conversation ' + file.substring(0, 8),
-            timestamp: firstLine.timestamp || new Date().toISOString()
-          };
+          // No summary, will create one after parsing messages
+          summary = null;
           startIndex = 0;
         }
         
@@ -100,6 +96,37 @@ export async function GET(
             } catch (e) {
               console.error(`Error parsing line ${i} in ${file}:`, e);
             }
+          }
+          
+          // Create summary if we didn't have one
+          if (!summary) {
+            const firstUserMessage = messages.find(m => m.type === 'user');
+            let summaryText = 'Conversation ' + file.substring(0, 8);
+            
+            if (firstUserMessage) {
+              // Extract text from first user message
+              const content = firstUserMessage.message?.content;
+              if (typeof content === 'string' && content.trim()) {
+                // Truncate to ~50 characters
+                summaryText = content.trim().length > 50 
+                  ? content.trim().substring(0, 50) + '...'
+                  : content.trim();
+              } else if (Array.isArray(content)) {
+                // Find first text content
+                const textContent = content.find(item => item.type === 'text' && item.text);
+                if (textContent && textContent.text) {
+                  summaryText = textContent.text.trim().length > 50 
+                    ? textContent.text.trim().substring(0, 50) + '...'
+                    : textContent.text.trim();
+                }
+              }
+            }
+            
+            summary = {
+              type: 'conversation.summary',
+              summary: summaryText,
+              timestamp: firstUserMessage?.timestamp || new Date().toISOString()
+            };
           }
           
           const conversation: Conversation = {
