@@ -46,6 +46,22 @@ export async function GET(
         if (firstLine.type === 'conversation.summary' || firstLine.type === 'summary') {
           summary = firstLine;
           startIndex = 1;
+          
+          // Handle edge case: multiple summary lines
+          while (startIndex < lines.length) {
+            try {
+              const nextLine = JSON.parse(lines[startIndex]);
+              if (nextLine.type === 'summary' || nextLine.type === 'conversation.summary') {
+                // Use the last summary if there are multiple
+                summary = nextLine;
+                startIndex++;
+              } else {
+                break;
+              }
+            } catch {
+              break;
+            }
+          }
         } else {
           // No summary, create a basic one
           summary = {
@@ -94,6 +110,11 @@ export async function GET(
             lastUpdated: summary.timestamp || messages[messages.length - 1]?.timestamp || new Date().toISOString(),
             projectId: params.id
           };
+          
+          // Only include conversations that actually have a valid summary
+          if (summary.summary && summary.summary.trim()) {
+            console.log(`File ${file}: ${messages.length} messages, summary: "${summary.summary.substring(0, 50)}..."`);
+          }
           
         conversations.push(conversation);
       } catch (e) {
