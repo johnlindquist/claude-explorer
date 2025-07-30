@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Conversation } from "@/lib/types";
+import { Conversation, ConversationMessage } from "@/lib/types";
 import MessageContent from "@/components/MessageContent";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+
+type FilterMode = 'all' | 'tools' | 'sidechains' | 'system' | 'thinking' | 'assistant' | 'user';
 
 export default function ConversationPage() {
   const params = useParams();
@@ -13,10 +15,9 @@ export default function ConversationPage() {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showTools, setShowTools] = useState(true);
-  const [showSidechains, setShowSidechains] = useState(true);
-  const [showSystem, setShowSystem] = useState(true);
-  const [showThinking, setShowThinking] = useState(true);
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
+  const [selectedMessage, setSelectedMessage] = useState<ConversationMessage | null>(null);
+  const [showJsonPanel, setShowJsonPanel] = useState(false);
 
   useEffect(() => {
     if (params.projectId && params.id) {
@@ -37,6 +38,16 @@ export default function ConversationPage() {
         });
     }
   }, [params.projectId, params.id]);
+
+  // Check window width for JSON panel
+  useEffect(() => {
+    const handleResize = () => {
+      setShowJsonPanel(window.innerWidth >= 1536); // 2xl breakpoint
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   if (loading) {
     return (
@@ -63,155 +74,203 @@ export default function ConversationPage() {
     );
   }
 
-  // Filter messages based on visibility settings
+  // Filter messages based on filter mode
   const visibleMessages = conversation.messages.filter(message => {
-    // Handle system messages
-    if (message.type === "system" && !showSystem) return false;
+    if (filterMode === 'all') return true;
     
-    // Handle sidechain messages
-    if (message.isSidechain && !showSidechains) return false;
+    if (filterMode === 'system') return message.type === 'system';
+    if (filterMode === 'assistant') return message.type === 'assistant';
+    if (filterMode === 'user') return message.type === 'user';
+    if (filterMode === 'sidechains') return message.isSidechain;
     
-    // Handle tool-only messages
-    if (!showTools && message.type === "user" && message.message) {
-      const content = message.message.content;
-      if (Array.isArray(content)) {
-        const hasOnlyTools = content.every(item => 
-          item.type === "tool_use" || item.type === "tool_result"
-        );
-        if (hasOnlyTools) return false;
-      }
+    // For content-based filters
+    if (!message.message || !message.message.content) return false;
+    const content = message.message.content;
+    
+    if (filterMode === 'tools' && Array.isArray(content)) {
+      return content.some(item => item.type === 'tool_use' || item.type === 'tool_result');
     }
     
-    // Handle thinking messages
-    if (!showThinking && message.message) {
-      const content = message.message.content;
-      if (Array.isArray(content)) {
-        const hasThinking = content.some(item => item.type === "thinking");
-        if (hasThinking) {
-          // Check if message has other visible content
-          const hasOtherContent = content.some(item => 
-            (item.type === "text" && item.text?.trim()) ||
-            (showTools && (item.type === "tool_use" || item.type === "tool_result"))
-          );
-          if (!hasOtherContent) return false;
-        }
-      }
+    if (filterMode === 'thinking' && Array.isArray(content)) {
+      return content.some(item => item.type === 'thinking');
     }
     
-    // For regular messages, check if they have actual content
-    if (message.type === "user" && message.message) {
-      const content = message.message.content;
-      if (typeof content === "string" && content.trim()) return true;
-      if (Array.isArray(content)) {
-        // Show if there's at least one text content or if tools are visible
-        return content.some(item => 
-          (item.type === "text" && item.text?.trim()) ||
-          (showTools && (item.type === "tool_use" || item.type === "tool_result"))
-        );
-      }
-    }
-    
-    // Always show assistant messages and system messages (if enabled)
-    return message.type === "assistant" || message.type === "system";
+    return false;
   });
 
-  const sideChainCount = conversation.messages.filter(m => m.isSidechain).length;
-  const toolMessageCount = conversation.messages.filter(m => {
-    if (!m.message) return false;
-    const content = m.message.content;
-    if (Array.isArray(content)) {
-      return content.some(item => item.type === "tool_use" || item.type === "tool_result");
-    }
-    return false;
-  }).length;
-  const systemMessageCount = conversation.messages.filter(m => m.type === "system").length;
-  const thinkingMessageCount = conversation.messages.filter(m => {
-    if (!m.message) return false;
-    const content = m.message.content;
-    if (Array.isArray(content)) {
-      return content.some(item => item.type === "thinking");
-    }
-    return false;
-  }).length;
+  // Count messages by type
+  const counts = {
+    all: conversation.messages.length,
+    assistant: conversation.messages.filter(m => m.type === 'assistant').length,
+    user: conversation.messages.filter(m => m.type === 'user').length,
+    tools: conversation.messages.filter(m => {
+      if (!m.message) return false;
+      const content = m.message.content;
+      if (Array.isArray(content)) {
+        return content.some(item => item.type === "tool_use" || item.type === "tool_result");
+      }
+      return false;
+    }).length,
+    sidechains: conversation.messages.filter(m => m.isSidechain).length,
+    system: conversation.messages.filter(m => m.type === "system").length,
+    thinking: conversation.messages.filter(m => {
+      if (!m.message) return false;
+      const content = m.message.content;
+      if (Array.isArray(content)) {
+        return content.some(item => item.type === "thinking");
+      }
+      return false;
+    }).length,
+  };
+
+  const handleMessageClick = (message: ConversationMessage) => {
+    setSelectedMessage(message);
+  };
 
   return (
     <div className="min-h-screen p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-4">
-          <Link href="/" className="text-primary hover:underline text-sm">
-            ← Back to projects
-          </Link>
-        </div>
-        
-        <div className="bg-card rounded-lg shadow-lg p-4 mb-4 border">
-          <h1 className="text-xl font-bold mb-2">
-            {conversation.summary.summary}
-          </h1>
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p>Session: {conversation.id.substring(0, 8)}...</p>
-            <p>{conversation.messageCount} messages • {new Date(conversation.lastUpdated).toLocaleDateString()}</p>
+      <div className={cn(
+        "mx-auto flex gap-4",
+        showJsonPanel && selectedMessage ? "max-w-7xl" : "max-w-4xl"
+      )}>
+        <div className="flex-1">
+          <div className="mb-4">
+            <Link href="/" className="text-primary hover:underline text-sm">
+              ← Back to projects
+            </Link>
           </div>
           
-          <div className="mt-3 flex gap-2 flex-wrap">
-            <button
-              onClick={() => setShowTools(!showTools)}
-              className={cn(
-                "px-3 py-1 rounded-md text-xs transition-colors",
-                showTools 
-                  ? "bg-primary text-primary-foreground" 
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-              )}
-            >
-              🔧 Tools ({toolMessageCount})
-            </button>
+          <div className="bg-card rounded-lg shadow-lg p-4 mb-4 border">
+            <h1 className="text-xl font-bold mb-2">
+              {conversation.summary.summary}
+            </h1>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p>Session: {conversation.id.substring(0, 8)}...</p>
+              <p>{conversation.messageCount} messages • {new Date(conversation.lastUpdated).toLocaleDateString()}</p>
+            </div>
             
-            <button
-              onClick={() => setShowSidechains(!showSidechains)}
-              className={cn(
-                "px-3 py-1 rounded-md text-xs transition-colors",
-                showSidechains 
-                  ? "bg-primary text-primary-foreground" 
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-              )}
-            >
-              🌟 Sidechains ({sideChainCount})
-            </button>
-            
-            <button
-              onClick={() => setShowSystem(!showSystem)}
-              className={cn(
-                "px-3 py-1 rounded-md text-xs transition-colors",
-                showSystem 
-                  ? "bg-primary text-primary-foreground" 
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-              )}
-            >
-              ⚙️ System ({systemMessageCount})
-            </button>
-            
-            <button
-              onClick={() => setShowThinking(!showThinking)}
-              className={cn(
-                "px-3 py-1 rounded-md text-xs transition-colors",
-                showThinking 
-                  ? "bg-primary text-primary-foreground" 
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-              )}
-            >
-              🧠 Thinking ({thinkingMessageCount})
-            </button>
+            <div className="mt-3 flex gap-2 flex-wrap">
+              <button
+                onClick={() => setFilterMode('all')}
+                className={cn(
+                  "px-3 py-1 rounded-md text-xs transition-colors",
+                  filterMode === 'all' 
+                    ? "bg-primary text-primary-foreground" 
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                )}
+              >
+                📋 All ({counts.all})
+              </button>
+              
+              <button
+                onClick={() => setFilterMode('assistant')}
+                className={cn(
+                  "px-3 py-1 rounded-md text-xs transition-colors",
+                  filterMode === 'assistant' 
+                    ? "bg-primary text-primary-foreground" 
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                )}
+              >
+                🤖 Assistant ({counts.assistant})
+              </button>
+              
+              <button
+                onClick={() => setFilterMode('user')}
+                className={cn(
+                  "px-3 py-1 rounded-md text-xs transition-colors",
+                  filterMode === 'user' 
+                    ? "bg-primary text-primary-foreground" 
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                )}
+              >
+                👤 User ({counts.user})
+              </button>
+              
+              <button
+                onClick={() => setFilterMode('tools')}
+                className={cn(
+                  "px-3 py-1 rounded-md text-xs transition-colors",
+                  filterMode === 'tools' 
+                    ? "bg-primary text-primary-foreground" 
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                )}
+              >
+                🔧 Tools ({counts.tools})
+              </button>
+              
+              <button
+                onClick={() => setFilterMode('sidechains')}
+                className={cn(
+                  "px-3 py-1 rounded-md text-xs transition-colors",
+                  filterMode === 'sidechains' 
+                    ? "bg-primary text-primary-foreground" 
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                )}
+              >
+                🌟 Sidechains ({counts.sidechains})
+              </button>
+              
+              <button
+                onClick={() => setFilterMode('system')}
+                className={cn(
+                  "px-3 py-1 rounded-md text-xs transition-colors",
+                  filterMode === 'system' 
+                    ? "bg-primary text-primary-foreground" 
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                )}
+              >
+                ⚙️ System ({counts.system})
+              </button>
+              
+              <button
+                onClick={() => setFilterMode('thinking')}
+                className={cn(
+                  "px-3 py-1 rounded-md text-xs transition-colors",
+                  filterMode === 'thinking' 
+                    ? "bg-primary text-primary-foreground" 
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                )}
+              >
+                🧠 Thinking ({counts.thinking})
+              </button>
+            </div>
           </div>
+          
+          <div className="space-y-2">
+            {visibleMessages.map((message) => (
+              <MessageContent 
+                key={message.uuid} 
+                message={message}
+                onMessageClick={handleMessageClick}
+                isSelected={selectedMessage?.uuid === message.uuid}
+              />
+            ))}
+          </div>
+          
+          {visibleMessages.length === 0 && (
+            <div className="text-center text-muted-foreground py-8">
+              No messages found for filter: {filterMode}
+            </div>
+          )}
         </div>
         
-        <div className="space-y-2">
-          {visibleMessages.map((message) => (
-            <MessageContent key={message.uuid} message={message} />
-          ))}
-        </div>
-        
-        {visibleMessages.length === 0 && (
-          <div className="text-center text-muted-foreground py-8">
-            No visible messages with current filters
+        {/* JSON Panel */}
+        {showJsonPanel && selectedMessage && (
+          <div className="w-96 sticky top-4 h-fit">
+            <div className="bg-card rounded-lg shadow-lg border p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold">Message JSON</h3>
+                <button
+                  onClick={() => setSelectedMessage(null)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  ✕
+                </button>
+              </div>
+              <pre className="text-xs bg-background rounded p-3 overflow-auto max-h-[80vh]">
+                {JSON.stringify(selectedMessage, null, 2)}
+              </pre>
+            </div>
           </div>
         )}
       </div>

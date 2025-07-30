@@ -6,9 +6,11 @@ import { cn } from "@/lib/utils";
 
 interface MessageContentProps {
   message: ConversationMessage;
+  onMessageClick?: (message: ConversationMessage) => void;
+  isSelected?: boolean;
 }
 
-export default function MessageContent({ message }: MessageContentProps) {
+export default function MessageContent({ message, onMessageClick, isSelected }: MessageContentProps) {
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
@@ -17,6 +19,18 @@ export default function MessageContent({ message }: MessageContentProps) {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const handleClick = () => {
+    if (onMessageClick) {
+      onMessageClick(message);
+    } else {
+      copyToClipboard();
+    }
+  };
+
+  // Check if message contains tools
+  const hasTools = message.message && Array.isArray(message.message.content) && 
+    message.message.content.some(item => item.type === 'tool_use' || item.type === 'tool_result');
 
   const renderToolParameters = (input: any) => {
     if (!input) return null;
@@ -153,7 +167,7 @@ export default function MessageContent({ message }: MessageContentProps) {
               const icon = toolIcons[item.name] || '🔧';
               
               return (
-                <div key={index} className="bg-secondary/50 rounded-md p-3 text-xs font-mono border border-border">
+                <div key={index} className="bg-secondary/50 rounded-md p-3 text-xs font-mono border border-border opacity-60 hover:opacity-100 transition-opacity">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-secondary-foreground font-semibold">
                       {icon} {item.name}
@@ -177,7 +191,7 @@ export default function MessageContent({ message }: MessageContentProps) {
             if (item.type === "tool_result") {
               return (
                 <div key={index} className={cn(
-                  "rounded-md p-2 text-xs border",
+                  "rounded-md p-2 text-xs border opacity-60 hover:opacity-100 transition-opacity",
                   item.is_error 
                     ? "bg-destructive/10 border-destructive/50 text-destructive" 
                     : "bg-secondary/30 border-border text-secondary-foreground"
@@ -213,8 +227,20 @@ export default function MessageContent({ message }: MessageContentProps) {
   const getMessageStyle = () => {
     let base = "rounded-lg p-3 transition-all cursor-pointer relative group ";
     
+    // Add selected state
+    if (isSelected) {
+      base += "ring-2 ring-primary ";
+    }
+    
     if (message.type === "system") {
       return base + "bg-accent/50 border border-accent";
+    }
+    
+    // Make assistant messages more prominent
+    if (message.type === "assistant") {
+      return base + (message.isSidechain 
+        ? "bg-secondary/50 mr-8 border border-border" 
+        : "bg-card mr-8 border border-primary/30 shadow-sm");
     }
     
     if (message.isSidechain) {
@@ -251,7 +277,14 @@ export default function MessageContent({ message }: MessageContentProps) {
   }
 
   return (
-    <div className={cn(getMessageStyle(), "hover:shadow-md")} onClick={copyToClipboard}>
+    <div 
+      className={cn(
+        getMessageStyle(), 
+        "hover:shadow-md",
+        hasTools && "opacity-75 hover:opacity-100"
+      )} 
+      onClick={handleClick}
+    >
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0">
           <div className={cn("w-6 h-6 rounded-full flex items-center justify-center font-semibold text-xs", getAvatarStyle())}>

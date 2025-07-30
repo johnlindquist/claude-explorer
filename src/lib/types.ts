@@ -67,4 +67,13 @@ export interface Conversation {
   messages: ConversationMessage[];
   lastUpdated: string;
   messageCount: number;
+  projectId?: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  path: string;
+  conversationCount?: number;
+  lastModified?: string;
 }
