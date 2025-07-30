@@ -18,6 +18,31 @@ export default function MessageContent({ message }: MessageContentProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const renderToolParameters = (input: any) => {
+    if (!input) return null;
+    
+    const params = Object.entries(input).filter(([key]) => key !== 'description');
+    if (params.length === 0) return null;
+    
+    return (
+      <div className="mt-2 space-y-1">
+        {params.map(([key, value]) => (
+          <div key={key} className="text-xs">
+            <span className="text-muted-foreground">{key}: </span>
+            <span className="text-foreground">
+              {typeof value === 'string' 
+                ? value.length > 100 
+                  ? value.substring(0, 100) + '...' 
+                  : value
+                : JSON.stringify(value, null, 2)
+              }
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const renderContent = () => {
     const content = message.message?.content || message.content;
     
@@ -76,23 +101,44 @@ export default function MessageContent({ message }: MessageContentProps) {
             }
             
             if (item.type === "tool_use") {
+              const toolIcons: Record<string, string> = {
+                'Bash': '💻',
+                'Read': '📖',
+                'Write': '✏️',
+                'Edit': '📝',
+                'MultiEdit': '📝',
+                'Grep': '🔍',
+                'Glob': '🔎',
+                'LS': '📁',
+                'WebFetch': '🌐',
+                'WebSearch': '🔍',
+                'Task': '🤖',
+                'TodoWrite': '✅',
+                'NotebookRead': '📓',
+                'NotebookEdit': '📓',
+                'ExitPlanMode': '🚪',
+              };
+              
+              const icon = toolIcons[item.name] || '🔧';
+              
               return (
                 <div key={index} className="bg-secondary/50 rounded-md p-3 text-xs font-mono border border-border">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-secondary-foreground font-semibold">🔧 {item.name}</span>
+                    <span className="text-secondary-foreground font-semibold">
+                      {icon} {item.name}
+                    </span>
                   </div>
+                  
+                  {/* Special handling for common tools */}
                   {item.name === "Bash" && item.input?.command && (
-                    <div className="bg-background/50 rounded p-2 mt-2">
+                    <div className="bg-background/50 rounded p-2 mt-2 overflow-x-auto">
                       <span className="text-muted-foreground">$ </span>
                       <span className="text-foreground">{item.input.command}</span>
                     </div>
                   )}
-                  {item.input?.file_path && (
-                    <div className="text-muted-foreground mt-1">📁 {item.input.file_path}</div>
-                  )}
-                  {item.input?.pattern && (
-                    <div className="text-muted-foreground mt-1">🔍 {item.input.pattern}</div>
-                  )}
+                  
+                  {/* Display all parameters */}
+                  {renderToolParameters(item.input)}
                 </div>
               );
             }
