@@ -1,20 +1,46 @@
 "use client";
 
 import { ConversationMessage } from "@/lib/types";
+import { useState } from "react";
 
 interface MessageContentProps {
   message: ConversationMessage;
 }
 
 export default function MessageContent({ message }: MessageContentProps) {
+  const [copied, setCopied] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(JSON.stringify(message, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const renderContent = () => {
-    const content = message.message.content;
+    const content = message.message?.content || message.content;
     
     // Handle string content
     if (typeof content === "string") {
+      const shouldTruncate = !expanded && content.length > 200;
+      const displayContent = shouldTruncate ? content.substring(0, 200) + "..." : content;
+      
       return (
-        <div className="whitespace-pre-wrap">
-          {content}
+        <div>
+          <div className="whitespace-pre-wrap text-sm">
+            {displayContent}
+          </div>
+          {content.length > 200 && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                setExpanded(!expanded);
+              }}
+              className="text-blue-400 hover:text-blue-300 text-xs mt-1"
+            >
+              {expanded ? "Show less" : "Show more"}
+            </button>
+          )}
         </div>
       );
     }
@@ -22,53 +48,53 @@ export default function MessageContent({ message }: MessageContentProps) {
     // Handle array content (including tool uses)
     if (Array.isArray(content)) {
       return (
-        <div className="space-y-2">
+        <div className="space-y-1">
           {content.map((item, index) => {
             if (item.type === "text" && item.text) {
+              const shouldTruncate = !expanded && item.text.length > 200;
+              const displayContent = shouldTruncate ? item.text.substring(0, 200) + "..." : item.text;
+              
               return (
-                <div key={index} className="whitespace-pre-wrap">
-                  {item.text}
+                <div key={index}>
+                  <div className="whitespace-pre-wrap text-sm">
+                    {displayContent}
+                  </div>
+                  {item.text.length > 200 && (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setExpanded(!expanded);
+                      }}
+                      className="text-blue-400 hover:text-blue-300 text-xs mt-1"
+                    >
+                      {expanded ? "Show less" : "Show more"}
+                    </button>
+                  )}
                 </div>
               );
             }
             
             if (item.type === "tool_use") {
               return (
-                <div key={index} className="bg-purple-100 rounded p-2 text-sm font-mono border border-purple-300">
-                  <span className="text-purple-700 font-semibold">🔧 Tool: {item.name}</span>
+                <div key={index} className="bg-purple-900 bg-opacity-30 rounded p-2 text-xs font-mono border border-purple-700">
+                  <span className="text-purple-300">🔧 {item.name}</span>
                   {item.input?.file_path && (
-                    <div className="text-purple-600 text-xs mt-1">📁 {item.input.file_path}</div>
-                  )}
-                  {item.input?.command && (
-                    <div className="text-purple-600 text-xs mt-1">💻 {item.input.command}</div>
-                  )}
-                  {item.input?.pattern && (
-                    <div className="text-purple-600 text-xs mt-1">🔍 {item.input.pattern}</div>
+                    <span className="text-purple-400 ml-2 text-xs">📁 {item.input.file_path}</span>
                   )}
                 </div>
               );
             }
             
             if (item.type === "tool_result") {
-              const contentPreview = item.content && typeof item.content === "string" 
-                ? item.content.substring(0, 200) 
-                : "";
-              
               return (
-                <div key={index} className={`rounded p-2 text-sm border ${
+                <div key={index} className={`rounded p-2 text-xs border ${
                   item.is_error 
-                    ? "bg-red-50 border-red-300 text-red-700" 
-                    : "bg-green-50 border-green-300 text-green-700"
+                    ? "bg-red-900 bg-opacity-30 border-red-700 text-red-300" 
+                    : "bg-green-900 bg-opacity-30 border-green-700 text-green-300"
                 }`}>
                   <span className="font-semibold">
-                    {item.is_error ? "❌ Tool Error" : "✅ Tool Result"}
+                    {item.is_error ? "❌ Error" : "✅ Result"}
                   </span>
-                  {contentPreview && (
-                    <div className="mt-1 text-xs font-mono overflow-auto max-h-40">
-                      {contentPreview}
-                      {item.content.length > 200 && "..."}
-                    </div>
-                  )}
                 </div>
               );
             }
@@ -81,27 +107,29 @@ export default function MessageContent({ message }: MessageContentProps) {
     
     // Handle system messages or empty content
     return (
-      <div className="text-gray-400 italic">
-        {message.type === "system" ? "[System message]" : "[No message content]"}
+      <div className="text-gray-500 italic text-sm">
+        {message.type === "system" ? message.content || "[System message]" : "[No content]"}
       </div>
     );
   };
 
   // Determine message styling based on type and characteristics
   const getMessageStyle = () => {
+    let base = "rounded-lg p-3 message-hover cursor-pointer relative ";
+    
     if (message.type === "system") {
-      return "bg-yellow-50 border-l-4 border-yellow-400";
+      return base + "bg-yellow-900 bg-opacity-20 border border-yellow-700";
     }
     
     if (message.isSidechain) {
-      return message.type === "user" 
-        ? "bg-indigo-50 ml-auto max-w-[80%] border-l-4 border-indigo-400" 
-        : "bg-indigo-100 mr-auto max-w-[80%] border-l-4 border-indigo-400";
+      return base + (message.type === "user" 
+        ? "bg-indigo-900 bg-opacity-20 ml-8 border border-indigo-700" 
+        : "bg-indigo-900 bg-opacity-30 mr-8 border border-indigo-700");
     }
     
-    return message.type === "user" 
-      ? "bg-blue-50 ml-auto max-w-[80%]" 
-      : "bg-gray-50 mr-auto max-w-[80%]";
+    return base + (message.type === "user" 
+      ? "bg-blue-900 bg-opacity-20 ml-8 border border-blue-700" 
+      : "bg-gray-800 mr-8 border border-gray-700");
   };
 
   const getAvatar = () => {
@@ -111,21 +139,13 @@ export default function MessageContent({ message }: MessageContentProps) {
   };
 
   const getAvatarColor = () => {
-    if (message.type === "system") return "bg-yellow-600";
+    if (message.type === "system") return "bg-yellow-700";
     if (message.isSidechain) return message.type === "user" ? "bg-indigo-600" : "bg-indigo-700";
     return message.type === "user" ? "bg-blue-600" : "bg-gray-600";
   };
 
-  const getTypeLabel = () => {
-    if (message.type === "system") return "System";
-    if (message.isSidechain) {
-      return message.type === "user" ? "Sub-Agent User" : "Sub-Agent Assistant";
-    }
-    return message.type === "user" ? "User" : "Assistant";
-  };
-
   // Skip rendering if it's a tool result message from user with no other content
-  if (message.type === "user" && Array.isArray(message.message.content)) {
+  if (message.type === "user" && message.message && Array.isArray(message.message.content)) {
     const hasOnlyToolResults = message.message.content.every(
       item => item.type === "tool_result"
     );
@@ -135,56 +155,49 @@ export default function MessageContent({ message }: MessageContentProps) {
   }
 
   return (
-    <div className={`rounded-lg p-4 ${getMessageStyle()}`}>
+    <div className={getMessageStyle()} onClick={copyToClipboard}>
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-xs ${getAvatarColor()}`}>
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white font-semibold text-xs ${getAvatarColor()}`}>
             {getAvatar()}
           </div>
         </div>
         
-        <div className="flex-1">
-          <div className="flex items-baseline gap-2 mb-1 flex-wrap">
-            <span className="font-semibold text-sm">
-              {getTypeLabel()}
-            </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             {message.isSidechain && (
-              <span className="text-xs bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded">
+              <span className="text-xs bg-indigo-800 text-indigo-200 px-1.5 py-0.5 rounded">
                 Sidechain
               </span>
             )}
-            {message.userType && message.userType !== "external" && (
-              <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded">
-                {message.userType}
+            {message.message?.model && (
+              <span className="text-xs text-gray-400">
+                {message.message.model}
               </span>
             )}
             <span className="text-xs text-gray-500">
-              {new Date(message.timestamp).toLocaleString()}
+              {new Date(message.timestamp).toLocaleTimeString()}
             </span>
           </div>
           
-          <div className="text-gray-800 text-sm">
+          <div className="text-gray-200">
             {renderContent()}
           </div>
-          
-          {message.message.model && (
-            <div className="mt-2 text-xs text-gray-500">
-              Model: {message.message.model}
-            </div>
-          )}
-          
-          {message.message.usage && (
-            <div className="mt-1 text-xs text-gray-400">
-              Tokens: {message.message.usage.input_tokens} in / {message.message.usage.output_tokens} out
-            </div>
-          )}
-          
-          {message.cwd && (
-            <div className="mt-1 text-xs text-gray-400">
-              Dir: {message.cwd}
-            </div>
-          )}
         </div>
+        
+        <button
+          className={`copy-button px-2 py-1 text-xs rounded transition-all ${
+            copied 
+              ? "bg-green-700 text-green-200" 
+              : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+          }`}
+          onClick={(e) => {
+            e.stopPropagation();
+            copyToClipboard();
+          }}
+        >
+          {copied ? "Copied!" : "Copy JSON"}
+        </button>
       </div>
     </div>
   );
