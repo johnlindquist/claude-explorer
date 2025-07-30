@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Conversation } from "@/lib/types";
 import MessageContent from "@/components/MessageContent";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 export default function ConversationPage() {
   const params = useParams();
@@ -36,9 +37,9 @@ export default function ConversationPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 p-4">
+      <div className="min-h-screen p-4">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center text-gray-400">Loading conversation...</div>
+          <div className="text-center text-muted-foreground">Loading conversation...</div>
         </div>
       </div>
     );
@@ -46,11 +47,11 @@ export default function ConversationPage() {
 
   if (error || !conversation) {
     return (
-      <div className="min-h-screen bg-gray-900 p-4">
+      <div className="min-h-screen p-4">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center text-red-400">{error || "Conversation not found"}</div>
+          <div className="text-center text-destructive">{error || "Conversation not found"}</div>
           <div className="text-center mt-4">
-            <Link href="/" className="text-blue-400 hover:text-blue-300 hover:underline">
+            <Link href="/" className="text-primary hover:underline">
               Back to conversations
             </Link>
           </div>
@@ -107,19 +108,19 @@ export default function ConversationPage() {
   const systemMessageCount = conversation.messages.filter(m => m.type === "system").length;
 
   return (
-    <div className="min-h-screen bg-gray-900 p-4">
+    <div className="min-h-screen p-4">
       <div className="max-w-4xl mx-auto">
         <div className="mb-4">
-          <Link href="/" className="text-blue-400 hover:text-blue-300 hover:underline text-sm">
+          <Link href="/" className="text-primary hover:underline text-sm">
             ← Back to conversations
           </Link>
         </div>
         
-        <div className="bg-gray-800 rounded-lg shadow-lg p-4 mb-4 border border-gray-700">
-          <h1 className="text-xl font-bold text-gray-100 mb-2">
+        <div className="bg-card rounded-lg shadow-lg p-4 mb-4 border">
+          <h1 className="text-xl font-bold mb-2">
             {conversation.summary.summary}
           </h1>
-          <div className="text-xs text-gray-400 space-y-1">
+          <div className="text-xs text-muted-foreground space-y-1">
             <p>Session: {conversation.id.substring(0, 8)}...</p>
             <p>{conversation.messageCount} messages • {new Date(conversation.lastUpdated).toLocaleDateString()}</p>
           </div>
@@ -127,33 +128,36 @@ export default function ConversationPage() {
           <div className="mt-3 flex gap-2 flex-wrap">
             <button
               onClick={() => setShowTools(!showTools)}
-              className={`px-2 py-1 rounded text-xs transition-colors ${
+              className={cn(
+                "px-3 py-1 rounded-md text-xs transition-colors",
                 showTools 
-                  ? "bg-purple-700 text-purple-100" 
-                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-              }`}
+                  ? "bg-primary text-primary-foreground" 
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+              )}
             >
               🔧 Tools ({toolMessageCount})
             </button>
             
             <button
               onClick={() => setShowSidechains(!showSidechains)}
-              className={`px-2 py-1 rounded text-xs transition-colors ${
+              className={cn(
+                "px-3 py-1 rounded-md text-xs transition-colors",
                 showSidechains 
-                  ? "bg-indigo-700 text-indigo-100" 
-                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-              }`}
+                  ? "bg-primary text-primary-foreground" 
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+              )}
             >
               🌟 Sidechains ({sideChainCount})
             </button>
             
             <button
               onClick={() => setShowSystem(!showSystem)}
-              className={`px-2 py-1 rounded text-xs transition-colors ${
+              className={cn(
+                "px-3 py-1 rounded-md text-xs transition-colors",
                 showSystem 
-                  ? "bg-yellow-700 text-yellow-100" 
-                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-              }`}
+                  ? "bg-primary text-primary-foreground" 
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+              )}
             >
               ⚙️ System ({systemMessageCount})
             </button>
@@ -167,7 +171,7 @@ export default function ConversationPage() {
         </div>
         
         {visibleMessages.length === 0 && (
-          <div className="text-center text-gray-500 py-8">
+          <div className="text-center text-muted-foreground py-8">
             No visible messages with current filters
           </div>
         )}
