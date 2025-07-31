@@ -1,23 +1,28 @@
 import { ConversationMessage } from './types';
 
-// @ts-ignore - FlexSearch types are not fully compatible
-import { Index } from 'flexsearch';
+// Use dynamic import to avoid build issues
+let FlexSearchIndex: any;
+if (typeof window !== 'undefined') {
+  // @ts-ignore
+  FlexSearchIndex = require('flexsearch').Index;
+}
 
 export class ConversationSearchIndex {
   private index: any;
   private messageMap: Map<string, ConversationMessage> = new Map();
   
   constructor() {
-    // Initialize FlexSearch with optimized settings for conversation search
-    this.index = new Index({
-      preset: 'match',
+    if (!FlexSearchIndex) {
+      throw new Error('FlexSearch not available');
+    }
+    
+    // Initialize FlexSearch with basic settings to avoid encoder issues
+    this.index = new FlexSearchIndex({
       tokenize: 'forward',
-      cache: true,
-      // Simplified configuration to avoid encoder issues
-      encode: 'icase',
-      split: /\s+/,
-      // Optimize for speed
-      depth: 3
+      // Use simple encoder to avoid issues
+      encoder: 'simple',
+      threshold: 0,
+      resolution: 9
     });
   }
 
@@ -104,13 +109,13 @@ export class ConversationSearchIndex {
   clear(): void {
     this.messageMap.clear();
     // Create a new index instance to clear all data
-    this.index = new Index({
-      preset: 'match',
-      tokenize: 'forward',
-      cache: true,
-      encode: 'icase',
-      split: /\s+/,
-      depth: 3
-    });
+    if (FlexSearchIndex) {
+      this.index = new FlexSearchIndex({
+        tokenize: 'forward',
+        encoder: 'simple',
+        threshold: 0,
+        resolution: 9
+      });
+    }
   }
 }

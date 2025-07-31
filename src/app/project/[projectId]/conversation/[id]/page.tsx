@@ -7,7 +7,7 @@ import MessageContent from "@/components/MessageContent";
 import SearchBar from "@/components/SearchBar";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { ConversationSearchIndex } from "@/lib/search-index";
+import { SimpleSearchIndex } from "@/lib/search-index-simple";
 
 type FilterMode = 'all' | 'tools' | 'sidechains' | 'system' | 'thinking' | 'assistant' | 'user';
 
@@ -24,7 +24,7 @@ export default function ConversationPage() {
   const [searchResults, setSearchResults] = useState<Set<string>>(new Set());
   const [searchDuration, setSearchDuration] = useState<number | null>(null);
   const [indexBuildTime, setIndexBuildTime] = useState<number | null>(null);
-  const searchIndexRef = useRef<ConversationSearchIndex | null>(null);
+  const searchIndexRef = useRef<SimpleSearchIndex | null>(null);
 
   useEffect(() => {
     if (params.projectId && params.id) {
@@ -41,7 +41,7 @@ export default function ConversationPage() {
           // Build search index
           const indexStartTime = performance.now();
           if (!searchIndexRef.current) {
-            searchIndexRef.current = new ConversationSearchIndex();
+            searchIndexRef.current = new SimpleSearchIndex();
           }
           await searchIndexRef.current.buildIndex(conv.messages);
           const indexEndTime = performance.now();
