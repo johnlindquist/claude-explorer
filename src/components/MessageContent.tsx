@@ -1,18 +1,22 @@
 "use client";
 
 import { ConversationMessage } from "@/lib/types";
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { cn } from "@/lib/utils";
+import { highlightSearchTerms } from "@/lib/highlight-utils";
 
 interface MessageContentProps {
   message: ConversationMessage;
   onMessageClick?: (message: ConversationMessage) => void;
   isSelected?: boolean;
+  searchQuery?: string;
+  isHighlighted?: boolean;
 }
 
-export default function MessageContent({ message, onMessageClick, isSelected }: MessageContentProps) {
+const MessageContent = forwardRef<HTMLDivElement, MessageContentProps>(
+  ({ message, onMessageClick, isSelected, searchQuery, isHighlighted }, ref) => {
   const [copied, setCopied] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(isHighlighted || false);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(JSON.stringify(message, null, 2));
@@ -64,11 +68,15 @@ export default function MessageContent({ message, onMessageClick, isSelected }: 
     if (typeof content === "string") {
       const shouldTruncate = !expanded && content.length > 200;
       const displayContent = shouldTruncate ? content.substring(0, 200) + "..." : content;
+      const finalContent = searchQuery ? highlightSearchTerms(displayContent, searchQuery) : displayContent;
       
       return (
         <div>
-          <div className="whitespace-pre-wrap text-sm">
-            {displayContent}
+          <div 
+            className="whitespace-pre-wrap text-sm"
+            dangerouslySetInnerHTML={searchQuery ? { __html: finalContent } : undefined}
+          >
+            {!searchQuery && displayContent}
           </div>
           {content.length > 200 && (
             <button
@@ -93,11 +101,15 @@ export default function MessageContent({ message, onMessageClick, isSelected }: 
             if (item.type === "text" && item.text) {
               const shouldTruncate = !expanded && item.text.length > 200;
               const displayContent = shouldTruncate ? item.text.substring(0, 200) + "..." : item.text;
+              const finalContent = searchQuery ? highlightSearchTerms(displayContent, searchQuery) : displayContent;
               
               return (
                 <div key={index}>
-                  <div className="whitespace-pre-wrap text-sm">
-                    {displayContent}
+                  <div 
+                    className="whitespace-pre-wrap text-sm"
+                    dangerouslySetInnerHTML={searchQuery ? { __html: finalContent } : undefined}
+                  >
+                    {!searchQuery && displayContent}
                   </div>
                   {item.text.length > 200 && (
                     <button
@@ -278,11 +290,13 @@ export default function MessageContent({ message, onMessageClick, isSelected }: 
 
   return (
     <div 
+      ref={ref}
       className={cn(
         getMessageStyle(), 
         "hover:shadow-md",
         hasTools && "opacity-75 hover:opacity-100",
-        onMessageClick && "hover:ring-1 hover:ring-primary/50"
+        onMessageClick && "hover:ring-1 hover:ring-primary/50",
+        isHighlighted && "ring-2 ring-yellow-500 bg-yellow-50 dark:bg-yellow-900/20"
       )} 
       onClick={handleClick}
     >
@@ -334,4 +348,8 @@ export default function MessageContent({ message, onMessageClick, isSelected }: 
       </div>
     </div>
   );
-}
+});
+
+MessageContent.displayName = 'MessageContent';
+
+export default MessageContent;

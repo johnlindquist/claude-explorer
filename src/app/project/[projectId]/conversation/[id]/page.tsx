@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Conversation, ConversationMessage } from "@/lib/types";
 import MessageContent from "@/components/MessageContent";
 import SearchBar from "@/components/SearchBar";
@@ -14,6 +14,7 @@ type FilterMode = 'all' | 'tools' | 'sidechains' | 'system' | 'thinking' | 'assi
 export default function ConversationPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +26,8 @@ export default function ConversationPage() {
   const [searchDuration, setSearchDuration] = useState<number | null>(null);
   const [indexBuildTime, setIndexBuildTime] = useState<number | null>(null);
   const searchIndexRef = useRef<SimpleSearchIndex | null>(null);
+  const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null);
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   useEffect(() => {
     if (params.projectId && params.id) {
@@ -47,6 +50,23 @@ export default function ConversationPage() {
           const indexEndTime = performance.now();
           setIndexBuildTime(indexEndTime - indexStartTime);
           
+          // Check for search params from project search
+          const urlQuery = searchParams.get('q');
+          const highlightId = searchParams.get('highlight');
+          
+          if (urlQuery) {
+            setSearchQuery(urlQuery);
+            // Perform initial search
+            const results = searchIndexRef.current.search(urlQuery);
+            const resultUuids = new Set(results.map(msg => msg.uuid));
+            setSearchResults(resultUuids);
+          }
+          
+          if (highlightId) {
+            setHighlightMessageId(highlightId);
+            setSelectedMessage(conv.messages.find(m => m.uuid === highlightId) || null);
+          }
+          
           setLoading(false);
         })
         .catch(err => {
@@ -54,7 +74,7 @@ export default function ConversationPage() {
           setLoading(false);
         });
     }
-  }, [params.projectId, params.id]);
+  }, [params.projectId, params.id, searchParams]);
 
   // Check window width for JSON panel
   useEffect(() => {
@@ -65,6 +85,27 @@ export default function ConversationPage() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Auto-scroll to highlighted message
+  useEffect(() => {
+    if (highlightMessageId && !loading) {
+      const messageElement = messageRefs.current.get(highlightMessageId);
+      if (messageElement) {
+        // Delay to ensure DOM is fully rendered
+        setTimeout(() => {
+          messageElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          });
+          // Add a visual pulse effect
+          messageElement.classList.add('animate-pulse');
+          setTimeout(() => {
+            messageElement.classList.remove('animate-pulse');
+          }, 2000);
+        }, 100);
+      }
+    }
+  }, [highlightMessageId, loading]);
 
   // Handle search
   const handleSearch = useCallback((query: string) => {
@@ -307,10 +348,15 @@ export default function ConversationPage() {
           <div className="space-y-2">
             {visibleMessages.map((message) => (
               <MessageContent 
-                key={message.uuid} 
+                key={message.uuid}
+                ref={(el) => {
+                  if (el) messageRefs.current.set(message.uuid, el);
+                }}
                 message={message}
                 onMessageClick={handleMessageClick}
                 isSelected={selectedMessage?.uuid === message.uuid}
+                searchQuery={searchQuery}
+                isHighlighted={message.uuid === highlightMessageId}
               />
             ))}
           </div>

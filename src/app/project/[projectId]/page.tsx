@@ -7,6 +7,7 @@ import Link from "next/link";
 import SearchBar from "@/components/SearchBar";
 import { ProjectSearchIndex, SearchResult } from "@/lib/project-search-index";
 import { cn } from "@/lib/utils";
+import { highlightSearchTerms, extractMessageText } from "@/lib/highlight-utils";
 
 export default function ProjectPage() {
   const params = useParams();
@@ -158,10 +159,17 @@ export default function ProjectPage() {
                 No conversations found matching "{searchQuery}"
               </div>
             ) : (
-              searchResults.map((result) => (
+              searchResults.map((result) => {
+                // Create URL with search params for highlighting and scrolling
+                const searchParams = new URLSearchParams({
+                  q: searchQuery,
+                  highlight: result.matchingMessages[0]?.uuid || ''
+                });
+                
+                return (
                 <Link
                   key={result.conversation.id}
-                  href={`/project/${params.projectId}/conversation/${result.conversation.id}`}
+                  href={`/project/${params.projectId}/conversation/${result.conversation.id}?${searchParams.toString()}`}
                   className="bg-card rounded-lg shadow-sm hover:shadow-md transition-all p-6 block border"
                 >
                   <div className="flex justify-between items-start mb-2">
@@ -185,17 +193,14 @@ export default function ProjectPage() {
                       <p className="text-xs text-muted-foreground mb-2">Sample matches:</p>
                       <div className="space-y-1">
                         {result.matchingMessages.slice(0, 2).map((msg, idx) => {
-                          const content = msg.message?.content || msg.content || '';
-                          const text = typeof content === 'string' 
-                            ? content 
-                            : Array.isArray(content) 
-                              ? content.find(c => c.type === 'text')?.text || ''
-                              : '';
+                          const text = extractMessageText(msg);
                           const preview = text.slice(0, 150) + (text.length > 150 ? '...' : '');
+                          const highlightedPreview = highlightSearchTerms(preview, searchQuery);
                           
                           return (
                             <div key={idx} className="text-xs bg-muted/50 p-2 rounded">
-                              <span className="font-medium">{msg.type}:</span> {preview}
+                              <span className="font-medium">{msg.type}:</span>{' '}
+                              <span dangerouslySetInnerHTML={{ __html: highlightedPreview }} />
                             </div>
                           );
                         })}
@@ -208,7 +213,8 @@ export default function ProjectPage() {
                     </div>
                   )}
                 </Link>
-              ))
+                );
+              })
             )
           ) : (
             // Show all conversations
