@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Conversation, ConversationMessage } from "@/lib/types";
 import MessageContent from "@/components/MessageContent";
+import SearchBar from "@/components/SearchBar";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { ConversationSearchIndex } from "@/lib/search-index";
 
 type FilterMode = 'all' | 'tools' | 'sidechains' | 'system' | 'thinking' | 'assistant' | 'user';
 
@@ -18,6 +20,11 @@ export default function ConversationPage() {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [selectedMessage, setSelectedMessage] = useState<ConversationMessage | null>(null);
   const [showJsonPanel, setShowJsonPanel] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Set<string>>(new Set());
+  const [searchDuration, setSearchDuration] = useState<number | null>(null);
+  const [indexBuildTime, setIndexBuildTime] = useState<number | null>(null);
+  const searchIndexRef = useRef<ConversationSearchIndex | null>(null);
 
   useEffect(() => {
     if (params.projectId && params.id) {
@@ -26,10 +33,20 @@ export default function ConversationPage() {
           if (!res.ok) throw new Error("Failed to load conversations");
           return res.json();
         })
-        .then((conversations: Conversation[]) => {
+        .then(async (conversations: Conversation[]) => {
           const conv = conversations.find(c => c.id === params.id);
           if (!conv) throw new Error("Conversation not found");
           setConversation(conv);
+          
+          // Build search index
+          const indexStartTime = performance.now();
+          if (!searchIndexRef.current) {
+            searchIndexRef.current = new ConversationSearchIndex();
+          }
+          await searchIndexRef.current.buildIndex(conv.messages);
+          const indexEndTime = performance.now();
+          setIndexBuildTime(indexEndTime - indexStartTime);
+          
           setLoading(false);
         })
         .catch(err => {
@@ -48,6 +65,94 @@ export default function ConversationPage() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Handle search
+  const handleSearch = useCallback((query: string) => {
+    if (!searchIndexRef.current) return;
+    
+    const startTime = performance.now();
+    
+    if (!query.trim()) {
+      setSearchResults(new Set());
+      setSearchDuration(null);
+      return;
+    }
+    
+    const results = searchIndexRef.current.search(query);
+    const resultUuids = new Set(results.map(msg => msg.uuid));
+    setSearchResults(resultUuids);
+    
+    const endTime = performance.now();
+    setSearchDuration(endTime - startTime);
+    setSearchQuery(query);
+  }, []);
+
+  // Filter messages based on filter mode and search
+  const visibleMessages = useMemo(() => {
+    if (!conversation) return [];
+    
+    return conversation.messages.filter(message => {
+      // First apply search filter
+      if (searchQuery.trim() && searchResults.size > 0 && !searchResults.has(message.uuid)) {
+        return false;
+      }
+      
+      // Then apply filter mode
+      if (filterMode === 'all') return true;
+      
+      if (filterMode === 'system') return message.type === 'system';
+      if (filterMode === 'assistant') return message.type === 'assistant';
+      if (filterMode === 'user') return message.type === 'user';
+      if (filterMode === 'sidechains') return message.isSidechain;
+      
+      // For content-based filters
+      if (!message.message || !message.message.content) return false;
+      const content = message.message.content;
+      
+      if (filterMode === 'tools' && Array.isArray(content)) {
+        return content.some(item => item.type === 'tool_use' || item.type === 'tool_result');
+      }
+      
+      if (filterMode === 'thinking' && Array.isArray(content)) {
+        return content.some(item => item.type === 'thinking');
+      }
+      
+      return false;
+    });
+  }, [conversation, filterMode, searchQuery, searchResults]);
+
+  // Count messages by type
+  const counts = useMemo(() => {
+    if (!conversation) return { all: 0, assistant: 0, user: 0, tools: 0, sidechains: 0, system: 0, thinking: 0 };
+    
+    return {
+      all: conversation.messages.length,
+      assistant: conversation.messages.filter(m => m.type === 'assistant').length,
+      user: conversation.messages.filter(m => m.type === 'user').length,
+      tools: conversation.messages.filter(m => {
+        if (!m.message) return false;
+        const content = m.message.content;
+        if (Array.isArray(content)) {
+          return content.some(item => item.type === "tool_use" || item.type === "tool_result");
+        }
+        return false;
+      }).length,
+      sidechains: conversation.messages.filter(m => m.isSidechain).length,
+      system: conversation.messages.filter(m => m.type === "system").length,
+      thinking: conversation.messages.filter(m => {
+        if (!m.message) return false;
+        const content = m.message.content;
+        if (Array.isArray(content)) {
+          return content.some(item => item.type === "thinking");
+        }
+        return false;
+      }).length,
+    };
+  }, [conversation]);
+
+  const handleMessageClick = (message: ConversationMessage) => {
+    setSelectedMessage(message);
+  };
 
   if (loading) {
     return (
@@ -73,59 +178,6 @@ export default function ConversationPage() {
       </div>
     );
   }
-
-  // Filter messages based on filter mode
-  const visibleMessages = conversation.messages.filter(message => {
-    if (filterMode === 'all') return true;
-    
-    if (filterMode === 'system') return message.type === 'system';
-    if (filterMode === 'assistant') return message.type === 'assistant';
-    if (filterMode === 'user') return message.type === 'user';
-    if (filterMode === 'sidechains') return message.isSidechain;
-    
-    // For content-based filters
-    if (!message.message || !message.message.content) return false;
-    const content = message.message.content;
-    
-    if (filterMode === 'tools' && Array.isArray(content)) {
-      return content.some(item => item.type === 'tool_use' || item.type === 'tool_result');
-    }
-    
-    if (filterMode === 'thinking' && Array.isArray(content)) {
-      return content.some(item => item.type === 'thinking');
-    }
-    
-    return false;
-  });
-
-  // Count messages by type
-  const counts = {
-    all: conversation.messages.length,
-    assistant: conversation.messages.filter(m => m.type === 'assistant').length,
-    user: conversation.messages.filter(m => m.type === 'user').length,
-    tools: conversation.messages.filter(m => {
-      if (!m.message) return false;
-      const content = m.message.content;
-      if (Array.isArray(content)) {
-        return content.some(item => item.type === "tool_use" || item.type === "tool_result");
-      }
-      return false;
-    }).length,
-    sidechains: conversation.messages.filter(m => m.isSidechain).length,
-    system: conversation.messages.filter(m => m.type === "system").length,
-    thinking: conversation.messages.filter(m => {
-      if (!m.message) return false;
-      const content = m.message.content;
-      if (Array.isArray(content)) {
-        return content.some(item => item.type === "thinking");
-      }
-      return false;
-    }).length,
-  };
-
-  const handleMessageClick = (message: ConversationMessage) => {
-    setSelectedMessage(message);
-  };
 
   return (
     <div className="min-h-screen p-4">
@@ -234,6 +286,22 @@ export default function ConversationPage() {
                 🧠 Thinking ({counts.thinking})
               </button>
             </div>
+            
+            <div className="mt-4">
+              <SearchBar 
+                onSearch={handleSearch}
+                placeholder="Search messages..."
+                className="w-full"
+              />
+              <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                {indexBuildTime !== null && (
+                  <p>Index built in {indexBuildTime.toFixed(2)}ms</p>
+                )}
+                {searchQuery && searchDuration !== null && (
+                  <p>Found {searchResults.size} results in {searchDuration.toFixed(2)}ms</p>
+                )}
+              </div>
+            </div>
           </div>
           
           <div className="space-y-2">
@@ -249,7 +317,9 @@ export default function ConversationPage() {
           
           {visibleMessages.length === 0 && (
             <div className="text-center text-muted-foreground py-8">
-              No messages found for filter: {filterMode}
+              {searchQuery 
+                ? `No messages found matching "${searchQuery}"${filterMode !== 'all' ? ` in ${filterMode} messages` : ''}`
+                : `No messages found for filter: ${filterMode}`}
             </div>
           )}
         </div>

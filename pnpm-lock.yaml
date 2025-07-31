@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      flexsearch:
+        specifier: ^0.8.205
+        version: 0.8.205
       next:
         specifier: 14.2.5
         version: 14.2.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -814,6 +817,9 @@ packages:
 
   flatted@3.3.3:
     resolution: {integrity: sha512-GX+ysw4PBCz0PzosHDepZGANEuFCMLrnRTiEy9McGjmkCQYwRq4A/X786G/fjM/+OjsWSU1ZrY5qyARZmO/uwg==}
+
+  flexsearch@0.8.205:
+    resolution: {integrity: sha512-REFjMqy86DKkCTJ4gIE42c9MVm9t1vUWfEub/8taixYuhvyu4jd4XmFALk5VuKW4GH4VLav8A4BJboTsslHF1w==}
 
   for-each@0.3.5:
     resolution: {integrity: sha512-dKx12eRCVIzqCxFGplyFKJMPvLEWgmNtUrpTiJIR5u97zEhRG8ySrtboPHZXx7daLxQVrl643cTzbab2tkQjxg==}
@@ -2620,6 +2626,8 @@ snapshots:
       rimraf: 3.0.2
 
   flatted@3.3.3: {}
+
+  flexsearch@0.8.205: {}
 
   for-each@0.3.5:
     dependencies:
