@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Conversation, Project } from "@/lib/types";
 import Link from "next/link";
+import SearchBar from "@/components/SearchBar";
+import { ProjectSearchIndex, SearchResult } from "@/lib/project-search-index";
+import { cn } from "@/lib/utils";
 
 export default function ProjectPage() {
   const params = useParams();
@@ -12,6 +15,11 @@ export default function ProjectPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
+  const [searchDuration, setSearchDuration] = useState<number | null>(null);
+  const [indexBuildTime, setIndexBuildTime] = useState<number | null>(null);
+  const searchIndexRef = useRef<ProjectSearchIndex | null>(null);
 
   useEffect(() => {
     if (params.projectId) {
@@ -32,8 +40,18 @@ export default function ProjectPage() {
           if (!res.ok) throw new Error("Failed to load conversations");
           return res.json();
         })
-        .then(data => {
+        .then(async data => {
           setConversations(data);
+          
+          // Build search index
+          const indexStartTime = performance.now();
+          if (!searchIndexRef.current) {
+            searchIndexRef.current = new ProjectSearchIndex();
+          }
+          await searchIndexRef.current.buildIndex(data);
+          const indexEndTime = performance.now();
+          setIndexBuildTime(indexEndTime - indexStartTime);
+          
           setLoading(false);
         })
         .catch(err => {
@@ -42,6 +60,35 @@ export default function ProjectPage() {
         });
     }
   }, [params.projectId]);
+
+  // Handle search
+  const handleSearch = useCallback((query: string) => {
+    if (!searchIndexRef.current) return;
+    
+    const startTime = performance.now();
+    
+    if (!query.trim()) {
+      setSearchResults(null);
+      setSearchDuration(null);
+      setSearchQuery("");
+      return;
+    }
+    
+    const results = searchIndexRef.current.search(query);
+    setSearchResults(results);
+    
+    const endTime = performance.now();
+    setSearchDuration(endTime - startTime);
+    setSearchQuery(query);
+  }, []);
+
+  // Display either search results or all conversations
+  const displayConversations = useMemo(() => {
+    if (searchResults && searchQuery) {
+      return searchResults.map(result => result.conversation);
+    }
+    return conversations;
+  }, [conversations, searchResults, searchQuery]);
 
   return (
     <div className="min-h-screen p-8">
@@ -66,6 +113,30 @@ export default function ProjectPage() {
           </Link>
         </div>
         
+        {/* Search Bar */}
+        {!loading && !error && conversations.length > 0 && (
+          <div className="mb-6">
+            <SearchBar 
+              onSearch={handleSearch}
+              placeholder="Search across all conversations..."
+              className="w-full max-w-2xl mx-auto"
+            />
+            <div className="text-xs text-muted-foreground mt-2 text-center space-y-1">
+              {indexBuildTime !== null && (
+                <p>Index built in {indexBuildTime.toFixed(2)}ms for {conversations.length} conversations</p>
+              )}
+              {searchQuery && searchDuration !== null && (
+                <p>
+                  Found {searchResults?.length || 0} conversations with matches in {searchDuration.toFixed(2)}ms
+                  {searchResults && searchResults.length > 0 && (
+                    <span> ({searchResults.reduce((sum, r) => sum + r.matchCount, 0)} total matches)</span>
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+        
         {loading && (
           <div className="text-center text-muted-foreground py-8">
             Loading conversations...
@@ -78,8 +149,70 @@ export default function ProjectPage() {
           </div>
         )}
         
+        {/* Conversation List */}
         <div className="grid gap-4">
-          {conversations.map((conv) => (
+          {searchResults && searchQuery ? (
+            // Show search results
+            searchResults.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                No conversations found matching "{searchQuery}"
+              </div>
+            ) : (
+              searchResults.map((result) => (
+                <Link
+                  key={result.conversation.id}
+                  href={`/project/${params.projectId}/conversation/${result.conversation.id}`}
+                  className="bg-card rounded-lg shadow-sm hover:shadow-md transition-all p-6 block border"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <h2 className="text-xl font-semibold flex-1">
+                      {result.conversation.summary.summary}
+                    </h2>
+                    <div className="text-sm text-muted-foreground ml-4 text-right">
+                      <div>{result.conversation.messageCount} messages</div>
+                      <div className="text-primary font-medium">{result.matchCount} matches</div>
+                    </div>
+                  </div>
+                  
+                  <div className="text-sm text-muted-foreground">
+                    <p>ID: {result.conversation.id.substring(0, 8)}...</p>
+                    <p>Last updated: {new Date(result.conversation.lastUpdated).toLocaleString()}</p>
+                  </div>
+                  
+                  {/* Show preview of matching messages */}
+                  {result.matchingMessages.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <p className="text-xs text-muted-foreground mb-2">Sample matches:</p>
+                      <div className="space-y-1">
+                        {result.matchingMessages.slice(0, 2).map((msg, idx) => {
+                          const content = msg.message?.content || msg.content || '';
+                          const text = typeof content === 'string' 
+                            ? content 
+                            : Array.isArray(content) 
+                              ? content.find(c => c.type === 'text')?.text || ''
+                              : '';
+                          const preview = text.slice(0, 150) + (text.length > 150 ? '...' : '');
+                          
+                          return (
+                            <div key={idx} className="text-xs bg-muted/50 p-2 rounded">
+                              <span className="font-medium">{msg.type}:</span> {preview}
+                            </div>
+                          );
+                        })}
+                        {result.matchingMessages.length > 2 && (
+                          <p className="text-xs text-muted-foreground">
+                            ...and {result.matchingMessages.length - 2} more matches
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </Link>
+              ))
+            )
+          ) : (
+            // Show all conversations
+            conversations.map((conv) => (
             <Link
               key={conv.id}
               href={`/project/${params.projectId}/conversation/${conv.id}`}
@@ -99,10 +232,11 @@ export default function ProjectPage() {
                 <p>Last updated: {new Date(conv.lastUpdated).toLocaleString()}</p>
               </div>
             </Link>
-          ))}
+          ))
+          )}
         </div>
         
-        {conversations.length === 0 && !loading && (
+        {conversations.length === 0 && !loading && !searchQuery && (
           <p className="text-muted-foreground text-center py-8">No conversations found in this project</p>
         )}
       </div>
