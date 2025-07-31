@@ -281,7 +281,8 @@ export default function MessageContent({ message, onMessageClick, isSelected }: 
       className={cn(
         getMessageStyle(), 
         "hover:shadow-md",
-        hasTools && "opacity-75 hover:opacity-100"
+        hasTools && "opacity-75 hover:opacity-100",
+        onMessageClick && "hover:ring-1 hover:ring-primary/50"
       )} 
       onClick={handleClick}
     >
@@ -314,20 +315,22 @@ export default function MessageContent({ message, onMessageClick, isSelected }: 
           </div>
         </div>
         
-        <button
-          className={cn(
-            "opacity-0 group-hover:opacity-100 px-2 py-1 text-xs rounded transition-all",
-            copied 
-              ? "bg-primary text-primary-foreground" 
-              : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-          )}
-          onClick={(e) => {
-            e.stopPropagation();
-            copyToClipboard();
-          }}
-        >
-          {copied ? "Copied!" : "Copy JSON"}
-        </button>
+        {!onMessageClick && (
+          <button
+            className={cn(
+              "opacity-0 group-hover:opacity-100 px-2 py-1 text-xs rounded transition-all",
+              copied 
+                ? "bg-primary text-primary-foreground" 
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              copyToClipboard();
+            }}
+          >
+            {copied ? "Copied!" : "Copy JSON"}
+          </button>
+        )}
       </div>
     </div>
   );

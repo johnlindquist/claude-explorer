@@ -256,18 +256,29 @@ export default function ConversationPage() {
         
         {/* JSON Panel */}
         {showJsonPanel && selectedMessage && (
-          <div className="w-96 sticky top-4 h-fit">
+          <div className="w-[500px] sticky top-4 h-fit">
             <div className="bg-card rounded-lg shadow-lg border p-4">
               <div className="flex justify-between items-center mb-3">
                 <h3 className="font-semibold">Message JSON</h3>
-                <button
-                  onClick={() => setSelectedMessage(null)}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  ✕
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(JSON.stringify(selectedMessage, null, 2));
+                      // Could add a toast notification here
+                    }}
+                    className="px-2 py-1 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/80 transition-colors"
+                  >
+                    Copy JSON
+                  </button>
+                  <button
+                    onClick={() => setSelectedMessage(null)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
-              <pre className="text-xs bg-background rounded p-3 overflow-auto max-h-[80vh]">
+              <pre className="text-xs bg-background rounded p-3 overflow-auto max-h-[85vh] font-mono">
                 {JSON.stringify(selectedMessage, null, 2)}
               </pre>
             </div>
