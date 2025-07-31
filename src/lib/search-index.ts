@@ -1,24 +1,23 @@
-import FlexSearch from 'flexsearch';
 import { ConversationMessage } from './types';
 
+// @ts-ignore - FlexSearch types are not fully compatible
+import { Index } from 'flexsearch';
+
 export class ConversationSearchIndex {
-  private index: FlexSearch.Index;
+  private index: any;
   private messageMap: Map<string, ConversationMessage> = new Map();
   
   constructor() {
     // Initialize FlexSearch with optimized settings for conversation search
-    this.index = new FlexSearch.Index({
+    this.index = new Index({
       preset: 'match',
       tokenize: 'forward',
-      threshold: 0,
-      resolution: 9,
       cache: true,
-      encode: 'advanced',
-      language: 'en',
-      suggest: false,
+      // Simplified configuration to avoid encoder issues
+      encode: 'icase',
+      split: /\s+/,
       // Optimize for speed
-      depth: 3,
-      bidirectional: false
+      depth: 3
     });
   }
 
@@ -105,17 +104,13 @@ export class ConversationSearchIndex {
   clear(): void {
     this.messageMap.clear();
     // Create a new index instance to clear all data
-    this.index = new FlexSearch.Index({
+    this.index = new Index({
       preset: 'match',
       tokenize: 'forward',
-      threshold: 0,
-      resolution: 9,
       cache: true,
-      encode: 'advanced',
-      language: 'en',
-      suggest: false,
-      depth: 3,
-      bidirectional: false
+      encode: 'icase',
+      split: /\s+/,
+      depth: 3
     });
   }
 }
