@@ -3,6 +3,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import { Project } from "@/lib/types";
+import { decodeProjectPath } from "@/lib/path-utils";
 
 export async function GET() {
   try {
@@ -43,7 +44,7 @@ export async function GET() {
         
         projects.push({
           id: entry.name,
-          name: entry.name,
+          name: decodeProjectPath(entry.name),
           path: projectPath,
           conversationCount,
           lastModified

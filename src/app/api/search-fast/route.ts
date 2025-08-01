@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { ConversationMessage } from '@/lib/types';
+import { decodeProjectPath } from '@/lib/path-utils';
 
 interface QuickSearchResult {
   projectId: string;
@@ -25,12 +26,12 @@ async function quickSearchProject(projectPath: string, projectId: string, query:
   const results: QuickSearchResult[] = [];
   
   // Get project name
-  let projectName = projectId;
+  let projectName = decodeProjectPath(projectId);
   try {
     const projectInfoPath = path.join(projectPath, 'project.json');
     const projectData = await fs.readFile(projectInfoPath, 'utf-8');
     const projectInfo = JSON.parse(projectData);
-    projectName = projectInfo.name || projectId;
+    projectName = projectInfo.name || decodeProjectPath(projectId);
   } catch {}
   
   const queryLower = query.toLowerCase();

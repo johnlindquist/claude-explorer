@@ -4,6 +4,7 @@ import path from 'path';
 import os from 'os';
 import { Conversation, ConversationMessage, Project } from '@/lib/types';
 import { ProjectSearchIndex } from '@/lib/project-search-index';
+import { decodeProjectPath } from '@/lib/path-utils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,11 +35,11 @@ export async function GET(request: NextRequest) {
         if (!projectStats.isDirectory()) continue;
         
         // Read project info
-        let projectName = projectId;
+        let projectName = decodeProjectPath(projectId);
         try {
           const projectData = await fs.readFile(projectInfoPath, 'utf-8');
           const projectInfo = JSON.parse(projectData);
-          projectName = projectInfo.name || projectId;
+          projectName = projectInfo.name || decodeProjectPath(projectId);
         } catch {
           // Continue with directory name if project.json doesn't exist
         }
