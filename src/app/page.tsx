@@ -13,8 +13,19 @@ interface SearchResult {
     id: string;
     name: string;
   };
-  conversation: Conversation;
-  matchingMessages: any[];
+  conversation: {
+    id: string;
+    summary: any;
+    messageCount: number;
+    lastUpdated: string;
+    projectId: string;
+  };
+  matchingMessages: Array<{
+    uuid: string;
+    type: string;
+    timestamp: string;
+    content: any;
+  }>;
   matchCount: number;
 }
 

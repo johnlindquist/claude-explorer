@@ -167,15 +167,33 @@ export async function GET(request: NextRequest) {
         // Search
         const searchResults = searchIndex.search(query);
         
-        // Add project info to results
+        // Add project info to results, but limit the data sent back
         searchResults.forEach(result => {
+          // Only send essential conversation data (not all messages)
+          const conversationSummary = {
+            id: result.conversation.id,
+            summary: result.conversation.summary,
+            messageCount: result.conversation.messageCount,
+            lastUpdated: result.conversation.lastUpdated,
+            projectId: result.conversation.projectId
+          };
+          
+          // Limit matching messages to just the essential data
+          const limitedMatchingMessages = result.matchingMessages.slice(0, 3).map(msg => ({
+            uuid: msg.uuid,
+            type: msg.type,
+            timestamp: msg.timestamp,
+            // Extract just the text content for preview
+            content: msg.message?.content || msg.content || ''
+          }));
+          
           allResults.push({
             project: {
               id: projectId,
               name: projectName,
             },
-            conversation: result.conversation,
-            matchingMessages: result.matchingMessages,
+            conversation: conversationSummary,
+            matchingMessages: limitedMatchingMessages,
             matchCount: result.matchCount,
           });
         });
@@ -186,12 +204,17 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Sort by match count
+    // Sort by match count and limit results
     allResults.sort((a, b) => b.matchCount - a.matchCount);
+    
+    // Limit to top 50 results to prevent response size issues
+    const limitedResults = allResults.slice(0, 50);
 
     return NextResponse.json({ 
-      results: allResults,
+      results: limitedResults,
       totalMatches: allResults.reduce((sum, r) => sum + r.matchCount, 0),
+      totalConversations: allResults.length,
+      limited: allResults.length > 50
     });
   } catch (error) {
     console.error('Search error:', error);
