@@ -136,7 +136,7 @@ export default function ProjectPage() {
       <div className="max-w-7xl mx-auto">
         <div className="mb-6 flex items-start justify-between gap-6">
           <div className="flex-1">
-            <h1 className="text-3xl font-bold">Conversation Visualizer</h1>
+            <h1 className="text-3xl font-bold">Claude Explorer</h1>
             {project && (
               <>
                 <h2 className="text-2xl font-semibold mt-2">{project.name}</h2>

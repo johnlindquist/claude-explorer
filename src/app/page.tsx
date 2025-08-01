@@ -155,7 +155,7 @@ export default function Home() {
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-start mb-8">
-          <h1 className="text-3xl font-bold">Conversation Visualizer</h1>
+          <h1 className="text-3xl font-bold">Claude Explorer</h1>
           <div className="bg-card border rounded-lg p-4 w-80">
             <StatsDisplay />
           </div>

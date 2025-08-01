@@ -6,8 +6,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Conversation Visualizer",
-  description: "Visualize and explore AI conversations",
+  title: "Claude Explorer",
+  description: "Search and explore Claude conversations with powerful visualization tools",
 };
 
 export default function RootLayout({
