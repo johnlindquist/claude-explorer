@@ -124,18 +124,18 @@ export default function Home() {
             placeholder="Search across all projects and conversations..."
             className="w-full max-w-3xl mx-auto"
           />
-          {searchDuration !== null && (
+          {(searching || searchDuration !== null) && (
             <div className="text-xs text-muted-foreground mt-2 text-center">
               {searching ? (
                 <span className="inline-flex items-center gap-2">
                   <span className="inline-block w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
                   Searching across all projects...
                 </span>
-              ) : (
+              ) : searchDuration !== null ? (
                 <>
                   {searchResults.reduce((sum, r) => sum + r.matchCount, 0)} matches across {searchResults.length} conversations ({searchDuration.toFixed(0)}ms)
                 </>
-              )}
+              ) : null}
             </div>
           )}
         </div>
