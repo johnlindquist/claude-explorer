@@ -11,7 +11,6 @@ import { cn } from "@/lib/utils";
 import { SimpleSearchIndex } from "@/lib/search-index-simple";
 import { conversationToMarkdown, conversationToSimpleMarkdown } from "@/lib/conversation-markdown";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
-import { decodeProjectPath } from "@/lib/path-utils";
 
 type FilterMode = 'all' | 'tools' | 'sidechains' | 'system' | 'thinking' | 'assistant' | 'user';
 
@@ -249,10 +248,10 @@ export default function ConversationPage() {
   const copyPath = () => {
     if (!params.projectId || !params.id) return;
     
-    // Get the project path from the projectId (which is the encoded path)
-    const encodedPath = decodeURIComponent(params.projectId as string);
-    const projectPath = decodeProjectPath(encodedPath);
-    const conversationPath = `${projectPath}/.claude/conversations/${params.id}.jsonl`;
+    // Get the encoded project ID
+    const encodedProjectId = params.projectId as string;
+    // Build the full path to the conversation file in ~/.claude/projects
+    const conversationPath = `/Users/johnlindquist/.claude/projects/${encodedProjectId}/${params.id}.jsonl`;
     
     navigator.clipboard.writeText(conversationPath).then(() => {
       setCopiedPath(true);
