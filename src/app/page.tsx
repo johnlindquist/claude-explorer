@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Project, Conversation } from "@/lib/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,6 +8,7 @@ import SearchBar from "@/components/SearchBar";
 import StatsDisplay from "@/components/StatsDisplay";
 import { cn } from "@/lib/utils";
 import { highlightSearchTerms, extractMessageText } from "@/lib/highlight-utils";
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 
 interface SearchResult {
   project: {
@@ -39,6 +40,8 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchDuration, setSearchDuration] = useState<number | null>(null);
+  const [selectedItemIndex, setSelectedItemIndex] = useState(-1);
+  const listContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch("/api/projects")
@@ -59,6 +62,41 @@ export default function Home() {
   const handleProjectSelect = (project: Project) => {
     router.push(`/project/${encodeURIComponent(project.id)}`);
   };
+
+  // Determine which items are currently displayed
+  const displayedItems = searchQuery && searchResults.length > 0 
+    ? searchResults 
+    : (!searchQuery && projects);
+
+  // Keyboard navigation
+  const { selectedIndex, reset: resetKeyboardNav } = useKeyboardNavigation({
+    itemCount: displayedItems ? displayedItems.length : 0,
+    isActive: !loading && !searching,
+    containerRef: listContainerRef,
+    onSelect: (index) => {
+      setSelectedItemIndex(index);
+    },
+    onEnter: (index) => {
+      if (searchQuery && searchResults.length > 0) {
+        const result = searchResults[index];
+        if (result) {
+          const searchParams = new URLSearchParams({
+            q: searchQuery,
+            highlight: result.matchingMessages[0]?.uuid || ''
+          });
+          router.push(`/project/${result.project.id}/conversation/${result.conversation.id}?${searchParams.toString()}`);
+        }
+      } else if (projects[index]) {
+        handleProjectSelect(projects[index]);
+      }
+    }
+  });
+
+  // Reset keyboard navigation when search results change
+  useEffect(() => {
+    resetKeyboardNav();
+    setSelectedItemIndex(-1);
+  }, [searchQuery, searchResults, resetKeyboardNav]);
 
   const handleSearch = useCallback(async (query: string) => {
     if (!query.trim()) {
@@ -150,7 +188,7 @@ export default function Home() {
         {searchQuery && searchResults.length > 0 && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Search Results</h2>
-            <div className="grid gap-4">
+            <div className="grid gap-4" ref={listContainerRef}>
               {searchResults.map((result, idx) => {
                 const searchParams = new URLSearchParams({
                   q: searchQuery,
@@ -161,7 +199,11 @@ export default function Home() {
                   <Link
                     key={`${result.project.id}-${result.conversation.id}-${idx}`}
                     href={`/project/${result.project.id}/conversation/${result.conversation.id}?${searchParams.toString()}`}
-                    className="bg-card rounded-lg shadow-sm hover:shadow-md transition-all p-6 block border"
+                    className={cn(
+                      "bg-card rounded-lg shadow-sm hover:shadow-md transition-all p-6 block border",
+                      selectedItemIndex === idx && "ring-2 ring-primary shadow-lg"
+                    )}
+                    data-keyboard-item
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
@@ -224,12 +266,16 @@ export default function Home() {
             ) : (
               <>
                 <h2 className="text-xl font-semibold mb-4">Select a Project</h2>
-                <div className="grid gap-3">
-                  {projects.map((project) => (
+                <div className="grid gap-3" ref={!searchQuery ? listContainerRef : undefined}>
+                  {projects.map((project, idx) => (
                     <button
                       key={project.id}
                       onClick={() => handleProjectSelect(project)}
-                      className="text-left p-4 rounded-lg border transition-all hover:shadow-md hover:border-primary/50 bg-card border-border"
+                      className={cn(
+                        "text-left p-4 rounded-lg border transition-all hover:shadow-md hover:border-primary/50 bg-card border-border",
+                        !searchQuery && selectedItemIndex === idx && "ring-2 ring-primary shadow-lg"
+                      )}
+                      data-keyboard-item
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex-1">

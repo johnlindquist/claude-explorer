@@ -10,6 +10,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { SimpleSearchIndex } from "@/lib/search-index-simple";
 import { conversationToMarkdown, conversationToSimpleMarkdown } from "@/lib/conversation-markdown";
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 
 type FilterMode = 'all' | 'tools' | 'sidechains' | 'system' | 'thinking' | 'assistant' | 'user';
 
@@ -32,6 +33,8 @@ export default function ConversationPage() {
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [copyFormat, setCopyFormat] = useState<'full' | 'simple'>('simple');
   const [copied, setCopied] = useState(false);
+  const [selectedMessageIndex, setSelectedMessageIndex] = useState(-1);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (params.projectId && params.id) {
@@ -165,6 +168,35 @@ export default function ConversationPage() {
       return false;
     });
   }, [conversation, filterMode, searchQuery, searchResults]);
+
+  // Keyboard navigation
+  const { selectedIndex, reset: resetKeyboardNav } = useKeyboardNavigation({
+    itemCount: visibleMessages.length,
+    isActive: !loading,
+    containerRef: messagesContainerRef,
+    onSelect: (index) => {
+      setSelectedMessageIndex(index);
+      if (visibleMessages[index]) {
+        setSelectedMessage(visibleMessages[index]);
+      }
+    },
+    onEnter: (index) => {
+      if (visibleMessages[index]) {
+        handleMessageClick(visibleMessages[index]);
+      }
+    }
+  });
+
+  // Update selected message index when keyboard navigation changes
+  useEffect(() => {
+    setSelectedMessageIndex(selectedIndex);
+  }, [selectedIndex]);
+
+  // Reset keyboard navigation when filter or search changes
+  useEffect(() => {
+    resetKeyboardNav();
+    setSelectedMessageIndex(-1);
+  }, [filterMode, searchQuery, searchResults, resetKeyboardNav]);
 
   // Count messages by type
   const counts = useMemo(() => {
@@ -392,8 +424,8 @@ export default function ConversationPage() {
             </div>
           </div>
           
-          <div className="space-y-2">
-            {visibleMessages.map((message) => (
+          <div className="space-y-2" ref={messagesContainerRef}>
+            {visibleMessages.map((message, idx) => (
               <MessageContent 
                 key={message.uuid}
                 ref={(el) => {
@@ -404,6 +436,8 @@ export default function ConversationPage() {
                 isSelected={selectedMessage?.uuid === message.uuid}
                 searchQuery={searchQuery}
                 isHighlighted={message.uuid === highlightMessageId}
+                isKeyboardSelected={selectedMessageIndex === idx}
+                data-keyboard-item
               />
             ))}
           </div>

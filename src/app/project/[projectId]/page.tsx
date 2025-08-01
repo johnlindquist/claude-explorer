@@ -9,6 +9,7 @@ import ProjectStatsDisplay from "@/components/ProjectStatsDisplay";
 import { FastProjectSearchIndex, SearchResult } from "@/lib/project-search-index-fast";
 import { cn } from "@/lib/utils";
 import { highlightSearchTerms, extractMessageText } from "@/lib/highlight-utils";
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 
 export default function ProjectPage() {
   const params = useParams();
@@ -23,6 +24,8 @@ export default function ProjectPage() {
   const [indexBuildTime, setIndexBuildTime] = useState<number | null>(null);
   const [indexBuilding, setIndexBuilding] = useState(false);
   const searchIndexRef = useRef<FastProjectSearchIndex | null>(null);
+  const [selectedItemIndex, setSelectedItemIndex] = useState(-1);
+  const listContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (params.projectId) {
@@ -95,6 +98,39 @@ export default function ProjectPage() {
     return conversations;
   }, [conversations, searchResults, searchQuery]);
 
+  // Determine which items are currently displayed for keyboard nav
+  const displayedItems = searchResults && searchQuery ? searchResults : conversations;
+
+  // Keyboard navigation
+  const { selectedIndex, reset: resetKeyboardNav } = useKeyboardNavigation({
+    itemCount: displayedItems.length,
+    isActive: !loading && !indexBuilding,
+    containerRef: listContainerRef,
+    onSelect: (index) => {
+      setSelectedItemIndex(index);
+    },
+    onEnter: (index) => {
+      if (searchResults && searchQuery) {
+        const result = searchResults[index];
+        if (result) {
+          const searchParams = new URLSearchParams({
+            q: searchQuery,
+            highlight: result.matchingMessages[0]?.uuid || ''
+          });
+          router.push(`/project/${params.projectId}/conversation/${result.conversation.id}?${searchParams.toString()}`);
+        }
+      } else if (conversations[index]) {
+        router.push(`/project/${params.projectId}/conversation/${conversations[index].id}`);
+      }
+    }
+  });
+
+  // Reset keyboard navigation when search results change
+  useEffect(() => {
+    resetKeyboardNav();
+    setSelectedItemIndex(-1);
+  }, [searchQuery, searchResults, resetKeyboardNav]);
+
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
@@ -166,7 +202,7 @@ export default function ProjectPage() {
         )}
         
         {/* Conversation List */}
-        <div className="grid gap-4">
+        <div className="grid gap-4" ref={listContainerRef}>
           {searchResults && searchQuery ? (
             // Show search results
             searchResults.length === 0 ? (
@@ -174,7 +210,7 @@ export default function ProjectPage() {
                 No conversations found matching &quot;{searchQuery}&quot;
               </div>
             ) : (
-              searchResults.map((result) => {
+              searchResults.map((result, idx) => {
                 // Create URL with search params for highlighting and scrolling
                 const searchParams = new URLSearchParams({
                   q: searchQuery,
@@ -185,7 +221,11 @@ export default function ProjectPage() {
                 <Link
                   key={result.conversation.id}
                   href={`/project/${params.projectId}/conversation/${result.conversation.id}?${searchParams.toString()}`}
-                  className="bg-card rounded-lg shadow-sm hover:shadow-md transition-all p-6 block border"
+                  className={cn(
+                    "bg-card rounded-lg shadow-sm hover:shadow-md transition-all p-6 block border",
+                    selectedItemIndex === idx && "ring-2 ring-primary shadow-lg"
+                  )}
+                  data-keyboard-item
                 >
                   <div className="flex justify-between items-start mb-2">
                     <h2 className="text-xl font-semibold flex-1">
@@ -233,11 +273,15 @@ export default function ProjectPage() {
             )
           ) : (
             // Show all conversations
-            conversations.map((conv) => (
+            conversations.map((conv, idx) => (
             <Link
               key={conv.id}
               href={`/project/${params.projectId}/conversation/${conv.id}`}
-              className="bg-card rounded-lg shadow-sm hover:shadow-md transition-all p-6 block border"
+              className={cn(
+                "bg-card rounded-lg shadow-sm hover:shadow-md transition-all p-6 block border",
+                !searchQuery && selectedItemIndex === idx && "ring-2 ring-primary shadow-lg"
+              )}
+              data-keyboard-item
             >
               <div className="flex justify-between items-start mb-2">
                 <h2 className="text-xl font-semibold flex-1">

@@ -11,10 +11,12 @@ interface MessageContentProps {
   isSelected?: boolean;
   searchQuery?: string;
   isHighlighted?: boolean;
+  isKeyboardSelected?: boolean;
+  'data-keyboard-item'?: boolean;
 }
 
 const MessageContent = forwardRef<HTMLDivElement, MessageContentProps>(
-  ({ message, onMessageClick, isSelected, searchQuery, isHighlighted }, ref) => {
+  ({ message, onMessageClick, isSelected, searchQuery, isHighlighted, isKeyboardSelected, ...props }, ref) => {
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(isHighlighted || false);
 
@@ -252,6 +254,11 @@ const MessageContent = forwardRef<HTMLDivElement, MessageContentProps>(
       base += "ring-2 ring-primary ";
     }
     
+    // Add keyboard selected state
+    if (isKeyboardSelected) {
+      base += "ring-2 ring-primary shadow-lg ";
+    }
+    
     if (message.type === "system") {
       return base + "bg-accent/50 border border-accent";
     }
@@ -307,6 +314,7 @@ const MessageContent = forwardRef<HTMLDivElement, MessageContentProps>(
         isHighlighted && "ring-2 ring-yellow-500 bg-yellow-50 dark:bg-yellow-900/20"
       )} 
       onClick={handleClick}
+      {...props}
     >
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0">
