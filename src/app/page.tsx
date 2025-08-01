@@ -190,9 +190,9 @@ export default function Home() {
                               </div>
                             );
                           })}
-                          {result.matchingMessages.length > 2 && (
+                          {result.matchCount > 2 && (
                             <p className="text-xs text-muted-foreground">
-                              ...and {result.matchingMessages.length - 2} more matches
+                              ...and {result.matchCount - 2} more match{result.matchCount - 2 !== 1 ? 'es' : ''}
                             </p>
                           )}
                         </div>
