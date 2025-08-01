@@ -21,6 +21,7 @@ export default function ProjectPage() {
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
   const [searchDuration, setSearchDuration] = useState<number | null>(null);
   const [indexBuildTime, setIndexBuildTime] = useState<number | null>(null);
+  const [indexBuilding, setIndexBuilding] = useState(false);
   const searchIndexRef = useRef<ProjectSearchIndex | null>(null);
 
   useEffect(() => {
@@ -46,6 +47,7 @@ export default function ProjectPage() {
           setConversations(data);
           
           // Build search index
+          setIndexBuilding(true);
           const indexStartTime = performance.now();
           if (!searchIndexRef.current) {
             searchIndexRef.current = new ProjectSearchIndex();
@@ -53,6 +55,7 @@ export default function ProjectPage() {
           await searchIndexRef.current.buildIndex(data);
           const indexEndTime = performance.now();
           setIndexBuildTime(indexEndTime - indexStartTime);
+          setIndexBuilding(false);
           
           setLoading(false);
         })
@@ -132,7 +135,10 @@ export default function ProjectPage() {
               className="w-full max-w-2xl mx-auto"
             />
             <div className="text-xs text-muted-foreground mt-2 text-center space-y-1">
-              {indexBuildTime !== null && (
+              {indexBuilding && (
+                <p className="animate-pulse">Building search index for {conversations.length} conversations...</p>
+              )}
+              {!indexBuilding && indexBuildTime !== null && (
                 <p>Index built in {indexBuildTime.toFixed(2)}ms for {conversations.length} conversations</p>
               )}
               {searchQuery && searchDuration !== null && (

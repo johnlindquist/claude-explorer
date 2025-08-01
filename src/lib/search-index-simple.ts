@@ -20,20 +20,32 @@ export class SimpleSearchIndex {
     this.entries = [];
     this.messageMap.clear();
     
-    // Index each message
-    messages.forEach((message) => {
-      const searchableText = this.extractSearchableText(message);
+    // Process messages in chunks to avoid blocking
+    const CHUNK_SIZE = 100;
+    
+    for (let i = 0; i < messages.length; i += CHUNK_SIZE) {
+      const chunk = messages.slice(i, i + CHUNK_SIZE);
       
-      if (searchableText) {
-        const tokens = this.tokenize(searchableText);
-        this.entries.push({
-          messageId: message.uuid,
-          text: searchableText,
-          tokens
-        });
-        this.messageMap.set(message.uuid, message);
+      // Process chunk
+      chunk.forEach((message) => {
+        const searchableText = this.extractSearchableText(message);
+        
+        if (searchableText) {
+          const tokens = this.tokenize(searchableText);
+          this.entries.push({
+            messageId: message.uuid,
+            text: searchableText,
+            tokens
+          });
+          this.messageMap.set(message.uuid, message);
+        }
+      });
+      
+      // Yield to event loop between chunks
+      if (i + CHUNK_SIZE < messages.length) {
+        await new Promise(resolve => setTimeout(resolve, 0));
       }
-    });
+    }
   }
 
   /**

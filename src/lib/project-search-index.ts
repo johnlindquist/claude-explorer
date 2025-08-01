@@ -28,17 +28,67 @@ export class ProjectSearchIndex {
     this.entries = [];
     this.conversationMap.clear();
     
-    // Index each conversation
-    for (const conversation of conversations) {
-      this.conversationMap.set(conversation.id, conversation);
+    // Process conversations in parallel batches
+    const BATCH_SIZE = 50; // Process 50 conversations at a time
+    const batches: Conversation[][] = [];
+    
+    for (let i = 0; i < conversations.length; i += BATCH_SIZE) {
+      batches.push(conversations.slice(i, i + BATCH_SIZE));
+    }
+    
+    // Process each batch in parallel
+    const batchResults = await Promise.all(
+      batches.map(batch => this.processBatch(batch))
+    );
+    
+    // Merge results from all batches
+    for (const { entries, conversationMap } of batchResults) {
+      this.entries.push(...entries);
+      for (const [id, conversation] of conversationMap) {
+        this.conversationMap.set(id, conversation);
+      }
+    }
+  }
+  
+  /**
+   * Process a batch of conversations in parallel
+   */
+  private async processBatch(conversations: Conversation[]): Promise<{
+    entries: IndexEntry[];
+    conversationMap: Map<string, Conversation>;
+  }> {
+    const entries: IndexEntry[] = [];
+    const conversationMap = new Map<string, Conversation>();
+    
+    // Process conversations in this batch in parallel
+    await Promise.all(conversations.map(async (conversation) => {
+      conversationMap.set(conversation.id, conversation);
       
-      // Index each message in the conversation
-      for (const message of conversation.messages) {
+      // Process messages for this conversation
+      const conversationEntries = await this.processConversation(conversation);
+      entries.push(...conversationEntries);
+    }));
+    
+    return { entries, conversationMap };
+  }
+  
+  /**
+   * Process a single conversation's messages
+   */
+  private async processConversation(conversation: Conversation): Promise<IndexEntry[]> {
+    const entries: IndexEntry[] = [];
+    
+    // Process messages in chunks to avoid blocking
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < conversation.messages.length; i += CHUNK_SIZE) {
+      const chunk = conversation.messages.slice(i, i + CHUNK_SIZE);
+      
+      for (const message of chunk) {
         const searchableText = this.extractSearchableText(message);
         
         if (searchableText) {
           const tokens = this.tokenize(searchableText);
-          this.entries.push({
+          entries.push({
             conversationId: conversation.id,
             messageId: message.uuid,
             text: searchableText,
@@ -47,7 +97,14 @@ export class ProjectSearchIndex {
           });
         }
       }
+      
+      // Yield to event loop every chunk
+      if (i + CHUNK_SIZE < conversation.messages.length) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
     }
+    
+    return entries;
   }
 
   /**
