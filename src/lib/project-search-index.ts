@@ -28,26 +28,25 @@ export class ProjectSearchIndex {
     this.entries = [];
     this.conversationMap.clear();
     
-    // Process conversations in parallel batches
-    const BATCH_SIZE = 50; // Process 50 conversations at a time
-    const batches: Conversation[][] = [];
-    
-    for (let i = 0; i < conversations.length; i += BATCH_SIZE) {
-      batches.push(conversations.slice(i, i + BATCH_SIZE));
+    // Store all conversations in the map first
+    for (const conversation of conversations) {
+      this.conversationMap.set(conversation.id, conversation);
     }
     
-    // Process each batch in parallel
-    const batchResults = await Promise.all(
-      batches.map(batch => this.processBatch(batch))
-    );
+    // Process all conversations in parallel with limited concurrency
+    const CONCURRENT_LIMIT = 10; // Process 10 conversations at a time
+    const allEntries: IndexEntry[][] = [];
     
-    // Merge results from all batches
-    for (const { entries, conversationMap } of batchResults) {
-      this.entries.push(...entries);
-      for (const [id, conversation] of conversationMap) {
-        this.conversationMap.set(id, conversation);
-      }
+    for (let i = 0; i < conversations.length; i += CONCURRENT_LIMIT) {
+      const batch = conversations.slice(i, i + CONCURRENT_LIMIT);
+      const batchEntries = await Promise.all(
+        batch.map(conv => this.processConversationFast(conv))
+      );
+      allEntries.push(...batchEntries);
     }
+    
+    // Flatten and store all entries
+    this.entries = allEntries.flat();
   }
   
   /**
@@ -73,7 +72,32 @@ export class ProjectSearchIndex {
   }
   
   /**
-   * Process a single conversation's messages
+   * Process a single conversation's messages (fast version)
+   */
+  private async processConversationFast(conversation: Conversation): Promise<IndexEntry[]> {
+    const entries: IndexEntry[] = [];
+    
+    // Process all messages without chunking for speed
+    for (const message of conversation.messages) {
+      const searchableText = this.extractSearchableText(message);
+      
+      if (searchableText) {
+        const tokens = this.tokenize(searchableText);
+        entries.push({
+          conversationId: conversation.id,
+          messageId: message.uuid,
+          text: searchableText,
+          tokens,
+          timestamp: message.timestamp
+        });
+      }
+    }
+    
+    return entries;
+  }
+  
+  /**
+   * Process a single conversation's messages (with yielding)
    */
   private async processConversation(conversation: Conversation): Promise<IndexEntry[]> {
     const entries: IndexEntry[] = [];
@@ -108,16 +132,20 @@ export class ProjectSearchIndex {
   }
 
   /**
-   * Tokenize text into searchable tokens
+   * Tokenize text into searchable tokens (optimized)
    */
   private tokenize(text: string): Set<string> {
-    // Convert to lowercase and split by word boundaries
-    const tokens = text.toLowerCase()
-      .split(/\b/)
-      .filter(token => token.trim().length > 0)
-      .filter(token => /\w/.test(token)); // Keep only tokens with word characters
+    // More efficient tokenization using a single regex
+    const tokens = new Set<string>();
+    const regex = /\b\w+\b/g;
+    const lowerText = text.toLowerCase();
+    let match;
     
-    return new Set(tokens);
+    while ((match = regex.exec(lowerText)) !== null) {
+      tokens.add(match[0]);
+    }
+    
+    return tokens;
   }
 
   /**

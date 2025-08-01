@@ -6,7 +6,7 @@ import { Conversation, Project } from "@/lib/types";
 import Link from "next/link";
 import SearchBar from "@/components/SearchBar";
 import ProjectStatsDisplay from "@/components/ProjectStatsDisplay";
-import { ProjectSearchIndex, SearchResult } from "@/lib/project-search-index";
+import { FastProjectSearchIndex, SearchResult } from "@/lib/project-search-index-fast";
 import { cn } from "@/lib/utils";
 import { highlightSearchTerms, extractMessageText } from "@/lib/highlight-utils";
 
@@ -22,7 +22,7 @@ export default function ProjectPage() {
   const [searchDuration, setSearchDuration] = useState<number | null>(null);
   const [indexBuildTime, setIndexBuildTime] = useState<number | null>(null);
   const [indexBuilding, setIndexBuilding] = useState(false);
-  const searchIndexRef = useRef<ProjectSearchIndex | null>(null);
+  const searchIndexRef = useRef<FastProjectSearchIndex | null>(null);
 
   useEffect(() => {
     if (params.projectId) {
@@ -50,7 +50,7 @@ export default function ProjectPage() {
           setIndexBuilding(true);
           const indexStartTime = performance.now();
           if (!searchIndexRef.current) {
-            searchIndexRef.current = new ProjectSearchIndex();
+            searchIndexRef.current = new FastProjectSearchIndex();
           }
           await searchIndexRef.current.buildIndex(data);
           const indexEndTime = performance.now();
