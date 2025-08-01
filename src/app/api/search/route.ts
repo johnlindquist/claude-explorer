@@ -23,10 +23,9 @@ export async function GET(request: NextRequest) {
     }
 
     const projectDirs = await fs.readdir(projectsDir);
-    const allResults = [];
-
-    // Search across all projects
-    for (const projectId of projectDirs) {
+    
+    // Process all projects in parallel
+    const projectPromises = projectDirs.map(async (projectId) => {
       const projectPath = path.join(projectsDir, projectId);
       const projectInfoPath = path.join(projectPath, 'project.json');
       
@@ -167,8 +166,8 @@ export async function GET(request: NextRequest) {
         // Search
         const searchResults = searchIndex.search(query);
         
-        // Add project info to results, but limit the data sent back
-        searchResults.forEach(result => {
+        // Map search results with project info, limiting data sent back
+        const projectResults = searchResults.map(result => {
           // Only send essential conversation data (not all messages)
           const conversationSummary = {
             id: result.conversation.id,
@@ -187,7 +186,7 @@ export async function GET(request: NextRequest) {
             content: msg.message?.content || msg.content || ''
           }));
           
-          allResults.push({
+          return {
             project: {
               id: projectId,
               name: projectName,
@@ -195,14 +194,21 @@ export async function GET(request: NextRequest) {
             conversation: conversationSummary,
             matchingMessages: limitedMatchingMessages,
             matchCount: result.matchCount,
-          });
+          };
         });
         
+        return projectResults;
       } catch (error) {
         console.error(`Error searching project ${projectId}:`, error);
-        continue;
+        return [];
       }
-    }
+    });
+
+    // Wait for all project searches to complete
+    const projectResultArrays = await Promise.all(projectPromises);
+    
+    // Flatten results from all projects
+    const allResults = projectResultArrays.flat();
 
     // Sort by match count and limit results
     allResults.sort((a, b) => b.matchCount - a.matchCount);

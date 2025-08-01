@@ -72,7 +72,7 @@ export default function Home() {
     const startTime = performance.now();
 
     try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`/api/search-optimized?q=${encodeURIComponent(query)}`);
       if (!response.ok) throw new Error("Search failed");
       
       const data = await response.json();
@@ -127,7 +127,10 @@ export default function Home() {
           {searchDuration !== null && (
             <div className="text-xs text-muted-foreground mt-2 text-center">
               {searching ? (
-                "Searching..."
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-block w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
+                  Searching across all projects...
+                </span>
               ) : (
                 <>
                   Found {searchResults.length} conversations with matches in {searchDuration.toFixed(2)}ms
