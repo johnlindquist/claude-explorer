@@ -9,6 +9,7 @@ import ConversationStatsDisplay from "@/components/ConversationStatsDisplay";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { SimpleSearchIndex } from "@/lib/search-index-simple";
+import { conversationToMarkdown, conversationToSimpleMarkdown } from "@/lib/conversation-markdown";
 
 type FilterMode = 'all' | 'tools' | 'sidechains' | 'system' | 'thinking' | 'assistant' | 'user';
 
@@ -29,6 +30,8 @@ export default function ConversationPage() {
   const searchIndexRef = useRef<SimpleSearchIndex | null>(null);
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [copyFormat, setCopyFormat] = useState<'full' | 'simple'>('simple');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (params.projectId && params.id) {
@@ -196,6 +199,19 @@ export default function ConversationPage() {
     setSelectedMessage(message);
   };
 
+  const copyAsMarkdown = () => {
+    if (!conversation) return;
+    
+    const markdown = copyFormat === 'full' 
+      ? conversationToMarkdown(conversation)
+      : conversationToSimpleMarkdown(conversation);
+    
+    navigator.clipboard.writeText(markdown).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen p-4">
@@ -333,6 +349,30 @@ export default function ConversationPage() {
               >
                 🧠 Thinking ({counts.thinking})
               </button>
+            </div>
+            
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={copyAsMarkdown}
+                  className={cn(
+                    "px-3 py-1 rounded-md text-xs transition-colors flex items-center gap-1",
+                    copied 
+                      ? "bg-green-600 text-white" 
+                      : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                  )}
+                >
+                  📋 {copied ? "Copied!" : "Copy as Markdown"}
+                </button>
+                <select
+                  value={copyFormat}
+                  onChange={(e) => setCopyFormat(e.target.value as 'full' | 'simple')}
+                  className="px-2 py-1 rounded-md text-xs bg-secondary text-secondary-foreground"
+                >
+                  <option value="simple">Simple (text only)</option>
+                  <option value="full">Full (with tools)</option>
+                </select>
+              </div>
             </div>
             
             <div className="mt-4">
