@@ -124,6 +124,9 @@ async function loadConversationDetails(projectPath: string, conversationId: stri
 }
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  const timings: Record<string, number> = {};
+  
   try {
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get('q');
@@ -140,7 +143,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ results: [] });
     }
 
+    timings.setup = Date.now() - startTime;
+    const readDirStart = Date.now();
     const projectDirs = await fs.readdir(projectsDir);
+    timings.readDir = Date.now() - readDirStart;
     
     // Search all projects in parallel
     const searchPromises = projectDirs.map(async (projectId) => {

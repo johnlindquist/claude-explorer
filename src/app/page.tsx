@@ -72,7 +72,7 @@ export default function Home() {
     const startTime = performance.now();
 
     try {
-      const response = await fetch(`/api/search-optimized?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`/api/search-fast?q=${encodeURIComponent(query)}`);
       if (!response.ok) throw new Error("Search failed");
       
       const data = await response.json();
