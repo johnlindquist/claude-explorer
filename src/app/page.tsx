@@ -133,10 +133,7 @@ export default function Home() {
                 </span>
               ) : (
                 <>
-                  Found {searchResults.length} conversations with matches in {searchDuration.toFixed(2)}ms
-                  {searchResults.length > 0 && (
-                    <span> ({searchResults.reduce((sum, r) => sum + r.matchCount, 0)} total matches)</span>
-                  )}
+                  {searchResults.reduce((sum, r) => sum + r.matchCount, 0)} matches across {searchResults.length} conversations ({searchDuration.toFixed(0)}ms)
                 </>
               )}
             </div>
