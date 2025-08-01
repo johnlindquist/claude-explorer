@@ -33,6 +33,12 @@ function escapeRegExp(string: string): string {
  * Extract text content from a message for preview
  */
 export function extractMessageText(message: any): string {
+  // Handle direct content (from search API)
+  if (typeof message.content === 'string') {
+    return message.content;
+  }
+  
+  // Handle structured message content
   const content = message.message?.content || message.content || '';
   
   if (typeof content === 'string') {

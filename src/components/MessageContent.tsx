@@ -72,12 +72,16 @@ const MessageContent = forwardRef<HTMLDivElement, MessageContentProps>(
       
       return (
         <div>
-          <div 
-            className="whitespace-pre-wrap text-sm"
-            dangerouslySetInnerHTML={searchQuery ? { __html: finalContent } : undefined}
-          >
-            {!searchQuery && displayContent}
-          </div>
+          {searchQuery ? (
+            <div 
+              className="whitespace-pre-wrap text-sm"
+              dangerouslySetInnerHTML={{ __html: finalContent }}
+            />
+          ) : (
+            <div className="whitespace-pre-wrap text-sm">
+              {displayContent}
+            </div>
+          )}
           {content.length > 200 && (
             <button
               onClick={(e) => {
@@ -105,12 +109,16 @@ const MessageContent = forwardRef<HTMLDivElement, MessageContentProps>(
               
               return (
                 <div key={index}>
-                  <div 
-                    className="whitespace-pre-wrap text-sm"
-                    dangerouslySetInnerHTML={searchQuery ? { __html: finalContent } : undefined}
-                  >
-                    {!searchQuery && displayContent}
-                  </div>
+                  {searchQuery ? (
+                    <div 
+                      className="whitespace-pre-wrap text-sm"
+                      dangerouslySetInnerHTML={{ __html: finalContent }}
+                    />
+                  ) : (
+                    <div className="whitespace-pre-wrap text-sm">
+                      {displayContent}
+                    </div>
+                  )}
                   {item.text.length > 200 && (
                     <button
                       onClick={(e) => {
