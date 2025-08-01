@@ -33,6 +33,7 @@ export default function ConversationPage() {
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [copyFormat, setCopyFormat] = useState<'full' | 'simple'>('simple');
   const [copied, setCopied] = useState(false);
+  const [copiedPath, setCopiedPath] = useState(false);
   const [selectedMessageIndex, setSelectedMessageIndex] = useState(-1);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -244,6 +245,19 @@ export default function ConversationPage() {
     });
   };
 
+  const copyPath = () => {
+    if (!params.projectId || !params.id) return;
+    
+    // Get the project path from the projectId (which is the encoded path)
+    const projectPath = decodeURIComponent(params.projectId as string);
+    const conversationPath = `${projectPath}/.claude/conversations/${params.id}.jsonl`;
+    
+    navigator.clipboard.writeText(conversationPath).then(() => {
+      setCopiedPath(true);
+      setTimeout(() => setCopiedPath(false), 2000);
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen p-4">
@@ -405,6 +419,17 @@ export default function ConversationPage() {
                   <option value="full">Full (with tools)</option>
                 </select>
               </div>
+              <button
+                onClick={copyPath}
+                className={cn(
+                  "px-3 py-1 rounded-md text-xs transition-colors flex items-center gap-1",
+                  copiedPath 
+                    ? "bg-green-600 text-white" 
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                )}
+              >
+                📁 {copiedPath ? "Copied!" : "Copy Path"}
+              </button>
             </div>
             
             <div className="mt-4">
