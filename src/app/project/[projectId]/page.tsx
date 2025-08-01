@@ -156,7 +156,7 @@ export default function ProjectPage() {
             // Show search results
             searchResults.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
-                No conversations found matching "{searchQuery}"
+                No conversations found matching &quot;{searchQuery}&quot;
               </div>
             ) : (
               searchResults.map((result) => {
