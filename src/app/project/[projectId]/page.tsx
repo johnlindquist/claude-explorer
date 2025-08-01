@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Conversation, Project } from "@/lib/types";
 import Link from "next/link";
 import SearchBar from "@/components/SearchBar";
+import ProjectStatsDisplay from "@/components/ProjectStatsDisplay";
 import { ProjectSearchIndex, SearchResult } from "@/lib/project-search-index";
 import { cn } from "@/lib/utils";
 import { highlightSearchTerms, extractMessageText } from "@/lib/highlight-utils";
@@ -94,8 +95,8 @@ export default function ProjectPage() {
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
+        <div className="mb-6 flex items-start justify-between gap-6">
+          <div className="flex-1">
             <h1 className="text-3xl font-bold">Conversation Visualizer</h1>
             {project && (
               <>
@@ -105,13 +106,21 @@ export default function ProjectPage() {
                 </p>
               </>
             )}
+            <Link
+              href="/"
+              className="inline-block mt-4 px-4 py-2 text-sm rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80"
+            >
+              ← Change Project
+            </Link>
           </div>
-          <Link
-            href="/"
-            className="px-4 py-2 text-sm rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80"
-          >
-            ← Change Project
-          </Link>
+          {params.projectId && !loading && (
+            <ProjectStatsDisplay 
+              projectId={params.projectId as string}
+              onConversationClick={(conversationId) => {
+                router.push(`/project/${params.projectId}/conversation/${conversationId}`);
+              }}
+            />
+          )}
         </div>
         
         {/* Search Bar */}

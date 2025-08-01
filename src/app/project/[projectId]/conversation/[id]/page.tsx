@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Conversation, ConversationMessage } from "@/lib/types";
 import MessageContent from "@/components/MessageContent";
 import SearchBar from "@/components/SearchBar";
+import ConversationStatsDisplay from "@/components/ConversationStatsDisplay";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { SimpleSearchIndex } from "@/lib/search-index-simple";
@@ -227,10 +228,16 @@ export default function ConversationPage() {
         showJsonPanel && selectedMessage ? "max-w-7xl" : "max-w-4xl"
       )}>
         <div className="flex-1">
-          <div className="mb-4">
+          <div className="mb-4 flex justify-between items-start">
             <Link href="/" className="text-primary hover:underline text-sm">
               ← Back to projects
             </Link>
+            {params.id && (
+              <ConversationStatsDisplay 
+                conversationId={params.id as string}
+                compact
+              />
+            )}
           </div>
           
           <div className="bg-card rounded-lg shadow-lg p-4 mb-4 border">

@@ -5,6 +5,7 @@ import { Project, Conversation } from "@/lib/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import SearchBar from "@/components/SearchBar";
+import StatsDisplay from "@/components/StatsDisplay";
 import { cn } from "@/lib/utils";
 import { highlightSearchTerms, extractMessageText } from "@/lib/highlight-utils";
 
@@ -115,7 +116,12 @@ export default function Home() {
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Conversation Visualizer</h1>
+        <div className="flex justify-between items-start mb-8">
+          <h1 className="text-3xl font-bold">Conversation Visualizer</h1>
+          <div className="bg-card border rounded-lg p-4 w-80">
+            <StatsDisplay />
+          </div>
+        </div>
         
         {/* Global Search Bar */}
         <div className="mb-8">
