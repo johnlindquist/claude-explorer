@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
+import * as fsSync from 'fs';
+import * as readline from 'readline';
 import path from 'path';
 import os from 'os';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { projectId: string } }
 ) {
   try {
-    const projectPath = path.join(os.homedir(), '.claude', 'projects', params.id);
+    const projectPath = path.join(os.homedir(), '.claude', 'projects', params.projectId);
+    const cachePath = path.join(projectPath, '.stats_cache.json');
     
     try {
       await fs.access(projectPath);
@@ -16,8 +19,22 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
     
+    // Check cache validity
+    try {
+      const projectStat = await fs.stat(projectPath);
+      const cacheStat = await fs.stat(cachePath);
+      
+      // If cache is newer than or equal to project directory, use it
+      if (cacheStat.mtimeMs >= projectStat.mtimeMs) {
+        const cachedData = await fs.readFile(cachePath, 'utf-8');
+        return NextResponse.json(JSON.parse(cachedData));
+      }
+    } catch {
+      // Cache doesn't exist or error reading it, continue to calculate
+    }
+    
     const stats = {
-      projectId: params.id,
+      projectId: params.projectId,
       totalConversations: 0,
       totalMessages: 0,
       totalUserMessages: 0,
@@ -39,18 +56,27 @@ export async function GET(
     
     for (const file of jsonlFiles) {
       const filePath = path.join(projectPath, file);
-      const content = await fs.readFile(filePath, 'utf-8');
-      const lines = content.split('\n').filter(line => line.trim());
       
-      if (lines.length === 0) continue;
+      // Use streaming to read file
+      const fileStream = fsSync.createReadStream(filePath);
+      const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity
+      });
       
       stats.totalConversations++;
       let conversationMessageCount = 0;
+      let hasContent = false;
       
       // Process each line
-      for (const line of lines) {
+      for await (const line of rl) {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) continue;
+        
+        hasContent = true;
+        
         try {
-          const data = JSON.parse(line);
+          const data = JSON.parse(trimmedLine);
           
           if (data.type === 'user' || data.type === 'assistant' || data.type === 'system') {
             conversationMessageCount++;
@@ -89,6 +115,12 @@ export async function GET(
         }
       }
       
+      // Decrement if file was empty
+      if (!hasContent) {
+        stats.totalConversations--;
+        continue;
+      }
+      
       // Track longest conversation
       if (conversationMessageCount > stats.longestConversation.messageCount) {
         stats.longestConversation = {
@@ -112,6 +144,14 @@ export async function GET(
         date: mostActiveEntry[0],
         messageCount: mostActiveEntry[1]
       };
+    }
+    
+    // Write stats to cache
+    try {
+      await fs.writeFile(cachePath, JSON.stringify(stats));
+    } catch (error) {
+      console.error('Failed to write stats cache:', error);
+      // Continue without failing the request
     }
     
     return NextResponse.json(stats);

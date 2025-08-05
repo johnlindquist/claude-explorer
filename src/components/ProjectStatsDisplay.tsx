@@ -49,7 +49,7 @@ export default function ProjectStatsDisplay({ projectId, className, onConversati
     );
   }
 
-  if (!stats || stats.error) return null;
+  if (!stats) return null;
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;

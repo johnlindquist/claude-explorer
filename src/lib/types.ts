@@ -23,7 +23,12 @@ export interface TextContent {
   text: string;
 }
 
-export type MessageContent = string | Array<TextContent | ToolUse | ToolResult>;
+export interface ThinkingContent {
+  type: "thinking";
+  content: string;
+}
+
+export type MessageContent = string | Array<TextContent | ToolUse | ToolResult | ThinkingContent>;
 
 export interface ConversationMessage {
   parentUuid: string | null;

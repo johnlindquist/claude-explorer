@@ -59,11 +59,11 @@ function formatMessageContent(message: ConversationMessage): string {
     for (const item of content) {
       if (item.type === 'text' && item.text) {
         parts.push(item.text);
-      } else if (item.type === 'thinking' && item.thinking) {
+      } else if (item.type === 'thinking' && 'content' in item) {
         parts.push('### 🧠 Thinking');
         parts.push('');
         parts.push('```');
-        parts.push(item.thinking);
+        parts.push(item.content);
         parts.push('```');
         parts.push('');
       } else if (item.type === 'tool_use') {
@@ -167,7 +167,7 @@ function formatSimpleMessageContent(message: ConversationMessage): string {
       if (item.type === 'text' && item.text) {
         parts.push(item.text);
         hasText = true;
-      } else if (item.type === 'thinking' && item.thinking) {
+      } else if (item.type === 'thinking' && 'content' in item) {
         parts.push('*[Thinking...]*');
       } else if (item.type === 'tool_use') {
         toolCalls.push(item.name);

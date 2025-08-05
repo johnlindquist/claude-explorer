@@ -39,14 +39,12 @@ export default function ConversationPage() {
 
   useEffect(() => {
     if (params.projectId && params.id) {
-      fetch(`/api/projects/${params.projectId}/conversations`)
+      fetch(`/api/projects/${params.projectId}/conversations/${params.id}`)
         .then(res => {
-          if (!res.ok) throw new Error("Failed to load conversations");
+          if (!res.ok) throw new Error("Failed to load conversation");
           return res.json();
         })
-        .then(async (conversations: Conversation[]) => {
-          const conv = conversations.find(c => c.id === params.id);
-          if (!conv) throw new Error("Conversation not found");
+        .then(async (conv: Conversation) => {
           setConversation(conv);
           
           // Build search index

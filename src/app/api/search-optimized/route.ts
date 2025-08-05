@@ -48,7 +48,7 @@ async function getProjectIndex(projectId: string, projectPath: string): Promise<
       
       conversations.push({
         id: path.basename(file, '.jsonl'),
-        summary: { summary: '', timestamp: '' }, // Dummy for indexing
+        summary: { type: 'summary', summary: '', leafUuid: '' }, // Dummy for indexing
         messages,
         messageCount: messages.length,
         lastUpdated: new Date().toISOString(),
@@ -184,7 +184,7 @@ export async function GET(request: NextRequest) {
               id: details.id,
               summary: details.summary,
               messageCount: details.messageCount,
-              lastUpdated: details.summary.timestamp,
+              lastUpdated: (details.summary as any).timestamp || new Date().toISOString(),
               projectId
             },
             matchingMessages: details.matchingMessages.slice(0, 3).map(msg => ({

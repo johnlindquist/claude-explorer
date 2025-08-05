@@ -136,9 +136,9 @@ const MessageContent = forwardRef<HTMLDivElement, MessageContentProps>(
               );
             }
             
-            if (item.type === "thinking" && item.thinking) {
-              const shouldTruncate = !expanded && item.thinking.length > 500;
-              const displayContent = shouldTruncate ? item.thinking.substring(0, 500) + "..." : item.thinking;
+            if (item.type === "thinking" && 'content' in item) {
+              const shouldTruncate = !expanded && item.content.length > 500;
+              const displayContent = shouldTruncate ? item.content.substring(0, 500) + "..." : item.content;
               
               return (
                 <div key={index} className="bg-accent/30 rounded-md p-3 border border-accent/50">
@@ -151,7 +151,7 @@ const MessageContent = forwardRef<HTMLDivElement, MessageContentProps>(
                   <div className="text-sm text-muted-foreground whitespace-pre-wrap font-mono">
                     {displayContent}
                   </div>
-                  {item.thinking.length > 500 && (
+                  {item.content.length > 500 && (
                     <button
                       onClick={(e) => {
                         e.preventDefault();

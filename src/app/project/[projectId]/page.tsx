@@ -6,7 +6,7 @@ import { Conversation, Project } from "@/lib/types";
 import Link from "next/link";
 import SearchBar from "@/components/SearchBar";
 import ProjectStatsDisplay from "@/components/ProjectStatsDisplay";
-import { FastProjectSearchIndex, SearchResult } from "@/lib/project-search-index-fast";
+// Removed client-side search index import
 import { cn } from "@/lib/utils";
 import { highlightSearchTerms, extractMessageText } from "@/lib/highlight-utils";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
@@ -19,11 +19,9 @@ export default function ProjectPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
+  const [searchResults, setSearchResults] = useState<any[] | null>(null);
   const [searchDuration, setSearchDuration] = useState<number | null>(null);
-  const [indexBuildTime, setIndexBuildTime] = useState<number | null>(null);
-  const [indexBuilding, setIndexBuilding] = useState(false);
-  const searchIndexRef = useRef<FastProjectSearchIndex | null>(null);
+  const [searching, setSearching] = useState(false);
   const [selectedItemIndex, setSelectedItemIndex] = useState(-1);
   const listContainerRef = useRef<HTMLDivElement>(null);
 
@@ -46,20 +44,8 @@ export default function ProjectPage() {
           if (!res.ok) throw new Error("Failed to load conversations");
           return res.json();
         })
-        .then(async data => {
+        .then(data => {
           setConversations(data);
-          
-          // Build search index
-          setIndexBuilding(true);
-          const indexStartTime = performance.now();
-          if (!searchIndexRef.current) {
-            searchIndexRef.current = new FastProjectSearchIndex();
-          }
-          await searchIndexRef.current.buildIndex(data);
-          const indexEndTime = performance.now();
-          setIndexBuildTime(indexEndTime - indexStartTime);
-          setIndexBuilding(false);
-          
           setLoading(false);
         })
         .catch(err => {
@@ -70,11 +56,7 @@ export default function ProjectPage() {
   }, [params.projectId]);
 
   // Handle search
-  const handleSearch = useCallback((query: string) => {
-    if (!searchIndexRef.current) return;
-    
-    const startTime = performance.now();
-    
+  const handleSearch = useCallback(async (query: string) => {
     if (!query.trim()) {
       setSearchResults(null);
       setSearchDuration(null);
@@ -82,13 +64,24 @@ export default function ProjectPage() {
       return;
     }
     
-    const results = searchIndexRef.current.search(query);
-    setSearchResults(results);
+    setSearching(true);
+    const startTime = performance.now();
     
-    const endTime = performance.now();
-    setSearchDuration(endTime - startTime);
-    setSearchQuery(query);
-  }, []);
+    try {
+      const response = await fetch(`/api/projects/${params.projectId}/search?q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      setSearchResults(data.results);
+      
+      const endTime = performance.now();
+      setSearchDuration(endTime - startTime);
+      setSearchQuery(query);
+    } catch (error) {
+      console.error("Search failed:", error);
+      setSearchResults(null);
+    } finally {
+      setSearching(false);
+    }
+  }, [params.projectId]);
 
   // Display either search results or all conversations
   const displayConversations = useMemo(() => {
@@ -104,7 +97,7 @@ export default function ProjectPage() {
   // Keyboard navigation
   const { selectedIndex, reset: resetKeyboardNav } = useKeyboardNavigation({
     itemCount: displayedItems.length,
-    isActive: !loading && !indexBuilding,
+    isActive: !loading && !searching,
     containerRef: listContainerRef,
     onSelect: (index) => {
       setSelectedItemIndex(index);
@@ -171,11 +164,8 @@ export default function ProjectPage() {
               className="w-full max-w-2xl mx-auto"
             />
             <div className="text-xs text-muted-foreground mt-2 text-center space-y-1">
-              {indexBuilding && (
-                <p className="animate-pulse">Building search index for {conversations.length} conversations...</p>
-              )}
-              {!indexBuilding && indexBuildTime !== null && (
-                <p>Index built in {indexBuildTime.toFixed(2)}ms for {conversations.length} conversations</p>
+              {searching && (
+                <p className="animate-pulse">Searching {conversations.length} conversations...</p>
               )}
               {searchQuery && searchDuration !== null && (
                 <p>
@@ -247,7 +237,7 @@ export default function ProjectPage() {
                     <div className="mt-3 pt-3 border-t border-border">
                       <p className="text-xs text-muted-foreground mb-2">Sample matches:</p>
                       <div className="space-y-1">
-                        {result.matchingMessages.slice(0, 2).map((msg, idx) => {
+                        {result.matchingMessages.slice(0, 2).map((msg: any, idx: number) => {
                           const text = extractMessageText(msg);
                           const preview = text.slice(0, 150) + (text.length > 150 ? '...' : '');
                           const highlightedPreview = highlightSearchTerms(preview, searchQuery);

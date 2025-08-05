@@ -52,7 +52,7 @@ export default function ConversationStatsDisplay({ conversationId, className, co
     );
   }
 
-  if (!stats || stats.error) return null;
+  if (!stats) return null;
 
   const formatNumber = (num: number) => {
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;

@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       
       try {
         const projectStats = await fs.stat(projectPath);
-        if (!projectStats.isDirectory()) continue;
+        if (!projectStats.isDirectory()) return [];
         
         // Read project info
         let projectName = decodeProjectPath(projectId);
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
                     timestamp: data.timestamp,
                     type: 'system',
                     content: data.content || '',
-                    metadata: data.metadata
+                    ...(data as any)
                   });
                 }
               } catch (e) {
@@ -127,8 +127,8 @@ export async function GET(request: NextRequest) {
                     ? content.trim().substring(0, 50) + '...'
                     : content.trim();
                 } else if (Array.isArray(content)) {
-                  const textContent = content.find(item => item.type === 'text' && item.text);
-                  if (textContent && textContent.text) {
+                  const textContent = content.find(item => item.type === 'text' && 'text' in item);
+                  if (textContent && textContent.type === 'text') {
                     summaryText = textContent.text.trim().length > 50 
                       ? textContent.text.trim().substring(0, 50) + '...'
                       : textContent.text.trim();
@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        if (conversations.length === 0) continue;
+        if (conversations.length === 0) return [];
 
         // Build search index for this project
         const searchIndex = new ProjectSearchIndex();

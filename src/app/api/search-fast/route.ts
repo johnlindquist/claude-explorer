@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
+import * as fsSync from 'fs';
+import * as readline from 'readline';
 import path from 'path';
 import os from 'os';
 import { ConversationMessage } from '@/lib/types';
@@ -41,22 +43,29 @@ async function quickSearchProject(projectPath: string, projectId: string, query:
   await Promise.all(jsonlFiles.map(async (file) => {
     try {
       const filePath = path.join(projectPath, file);
-      const content = await fs.readFile(filePath, 'utf-8');
-      const lines = content.split('\n');
-      
       const conversationId = path.basename(file, '.jsonl');
       const matches: QuickSearchResult['firstMatches'] = [];
       
       let summary = null;
       let matchCount = 0;
       
-      // Quick scan through lines
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
+      // Use streaming to read file
+      const fileStream = fsSync.createReadStream(filePath);
+      const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity
+      });
+      
+      let i = 0;
+      for await (const line of rl) {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) {
+          i++;
+          continue;
+        }
         
         try {
-          const data = JSON.parse(line);
+          const data = JSON.parse(trimmedLine);
           
           // Capture summary if present
           if (i === 0 && (data.type === 'conversation.summary' || data.type === 'summary')) {
@@ -64,7 +73,10 @@ async function quickSearchProject(projectPath: string, projectId: string, query:
           }
           
           // Only search user/assistant/system messages
-          if (data.type !== 'user' && data.type !== 'assistant' && data.type !== 'system') continue;
+          if (data.type !== 'user' && data.type !== 'assistant' && data.type !== 'system') {
+            i++;
+            continue;
+          }
           
           // Extract text content
           let text = '';
@@ -75,13 +87,16 @@ async function quickSearchProject(projectPath: string, projectId: string, query:
               text = data.message.content;
             } else if (Array.isArray(data.message.content)) {
               text = data.message.content
-                .filter(item => item.type === 'text' && item.text)
-                .map(item => item.text)
+                .filter((item: any) => item.type === 'text' && item.text)
+                .map((item: any) => item.text)
                 .join(' ');
             }
           }
           
-          if (!text) continue;
+          if (!text) {
+            i++;
+            continue;
+          }
           
           // Check if all query tokens are present
           const textLower = text.toLowerCase();
@@ -108,6 +123,8 @@ async function quickSearchProject(projectPath: string, projectId: string, query:
         } catch (e) {
           // Skip invalid JSON lines
         }
+        
+        i++;
       }
       
       if (matchCount > 0) {
