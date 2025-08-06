@@ -18,6 +18,7 @@ export async function GET(
   try {
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get('q');
+    const mode = (searchParams.get('mode') || 'exact') as 'exact' | 'regex';
     
     if (!query || !query.trim()) {
       return NextResponse.json({ results: [] });
@@ -71,7 +72,7 @@ export async function GET(
     }
     
     // Perform search
-    const searchResults = index.search(query);
+    const searchResults = index.search(query, mode);
     
     // Get project name
     let projectName = decodeProjectPath(projectId);

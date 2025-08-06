@@ -62,12 +62,20 @@ export class FastProjectSearchIndex {
   /**
    * Search the index and return matching conversations with their messages
    */
-  search(query: string): SearchResult[] {
+  search(query: string, mode: 'exact' | 'regex' = 'exact'): SearchResult[] {
     if (!query.trim()) return [];
 
     // Pre-process query
     const queryLower = query.toLowerCase();
-    const queryTerms = queryLower.split(/\s+/).filter(term => term.length > 0);
+    let queryTerms: string[] = [];
+    
+    if (mode === 'exact') {
+      // For exact mode, treat the entire query as one term
+      queryTerms = [queryLower.trim()];
+    } else {
+      // For regex mode (partial match), split into terms
+      queryTerms = queryLower.split(/\s+/).filter(term => term.length > 0);
+    }
     
     if (queryTerms.length === 0) return [];
     
@@ -75,16 +83,26 @@ export class FastProjectSearchIndex {
 
     // Search through all entries
     for (const entry of this.entries) {
-      // Check if all query terms are present (using simple string includes)
-      let allTermsFound = true;
-      for (const term of queryTerms) {
-        if (!entry.textLower.includes(term)) {
-          allTermsFound = false;
-          break;
+      let matches = false;
+      
+      if (mode === 'exact') {
+        // For exact mode, check for exact phrase match with word boundaries
+        const escapedQuery = queryTerms[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const exactRegex = new RegExp(`\\b${escapedQuery}\\b`, 'i');
+        matches = exactRegex.test(entry.text);
+      } else {
+        // For regex mode, check if all query terms are present
+        let allTermsFound = true;
+        for (const term of queryTerms) {
+          if (!entry.textLower.includes(term)) {
+            allTermsFound = false;
+            break;
+          }
         }
+        matches = allTermsFound;
       }
       
-      if (allTermsFound) {
+      if (matches) {
         if (!conversationMatches.has(entry.conversationId)) {
           conversationMatches.set(entry.conversationId, new Set());
         }

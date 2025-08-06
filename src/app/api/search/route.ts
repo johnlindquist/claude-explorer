@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get('q');
+    const mode = (searchParams.get('mode') || 'exact') as 'exact' | 'regex';
     
     if (!query || !query.trim()) {
       return NextResponse.json({ results: [] });
@@ -165,7 +166,7 @@ export async function GET(request: NextRequest) {
         await searchIndex.buildIndex(conversations);
         
         // Search
-        const searchResults = searchIndex.search(query);
+        const searchResults = searchIndex.search(query, mode);
         
         // Map search results with project info, limiting data sent back
         const projectResults = searchResults.map(result => {

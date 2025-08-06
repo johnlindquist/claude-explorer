@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Project, Conversation } from "@/lib/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import SearchBar from "@/components/SearchBar";
+import SearchBar, { SearchMode } from "@/components/SearchBar";
 import StatsDisplay from "@/components/StatsDisplay";
 import { cn } from "@/lib/utils";
 import { highlightSearchTerms, extractMessageText } from "@/lib/highlight-utils";
@@ -37,6 +37,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchMode, setSearchMode] = useState<SearchMode>('exact');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchDuration, setSearchDuration] = useState<number | null>(null);
@@ -98,7 +99,7 @@ export default function Home() {
     setSelectedItemIndex(-1);
   }, [searchQuery, searchResults, resetKeyboardNav]);
 
-  const handleSearch = useCallback(async (query: string) => {
+  const handleSearch = useCallback(async (query: string, mode: SearchMode) => {
     if (!query.trim()) {
       setSearchResults([]);
       setSearchDuration(null);
@@ -108,10 +109,11 @@ export default function Home() {
 
     setSearching(true);
     setSearchQuery(query);
+    setSearchMode(mode);
     const startTime = performance.now();
 
     try {
-      const response = await fetch(`/api/search-fast?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`/api/search-fast?q=${encodeURIComponent(query)}&mode=${mode}`);
       if (!response.ok) throw new Error("Search failed");
       
       const data = await response.json();
@@ -226,7 +228,7 @@ export default function Home() {
                           {result.matchingMessages.slice(0, 2).map((msg, msgIdx) => {
                             const text = extractMessageText(msg);
                             const preview = text.slice(0, 150) + (text.length > 150 ? '...' : '');
-                            const highlightedPreview = highlightSearchTerms(preview, searchQuery);
+                            const highlightedPreview = highlightSearchTerms(preview, searchQuery, searchMode);
                             
                             return (
                               <div key={msgIdx} className="text-xs bg-muted/50 p-2 rounded">

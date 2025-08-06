@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Conversation, Project } from "@/lib/types";
 import Link from "next/link";
-import SearchBar from "@/components/SearchBar";
+import SearchBar, { SearchMode } from "@/components/SearchBar";
 import ProjectStatsDisplay from "@/components/ProjectStatsDisplay";
 // Removed client-side search index import
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ export default function ProjectPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchMode, setSearchMode] = useState<SearchMode>('exact');
   const [searchResults, setSearchResults] = useState<any[] | null>(null);
   const [searchDuration, setSearchDuration] = useState<number | null>(null);
   const [searching, setSearching] = useState(false);
@@ -56,7 +57,7 @@ export default function ProjectPage() {
   }, [params.projectId]);
 
   // Handle search
-  const handleSearch = useCallback(async (query: string) => {
+  const handleSearch = useCallback(async (query: string, mode: SearchMode) => {
     if (!query.trim()) {
       setSearchResults(null);
       setSearchDuration(null);
@@ -68,13 +69,14 @@ export default function ProjectPage() {
     const startTime = performance.now();
     
     try {
-      const response = await fetch(`/api/projects/${params.projectId}/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`/api/projects/${params.projectId}/search?q=${encodeURIComponent(query)}&mode=${mode}`);
       const data = await response.json();
       setSearchResults(data.results);
       
       const endTime = performance.now();
       setSearchDuration(endTime - startTime);
       setSearchQuery(query);
+      setSearchMode(mode);
     } catch (error) {
       console.error("Search failed:", error);
       setSearchResults(null);
@@ -240,7 +242,7 @@ export default function ProjectPage() {
                         {result.matchingMessages.slice(0, 2).map((msg: any, idx: number) => {
                           const text = extractMessageText(msg);
                           const preview = text.slice(0, 150) + (text.length > 150 ? '...' : '');
-                          const highlightedPreview = highlightSearchTerms(preview, searchQuery);
+                          const highlightedPreview = highlightSearchTerms(preview, searchQuery, searchMode);
                           
                           return (
                             <div key={idx} className="text-xs bg-muted/50 p-2 rounded">

@@ -10,13 +10,14 @@ interface MessageContentProps {
   onMessageClick?: (message: ConversationMessage) => void;
   isSelected?: boolean;
   searchQuery?: string;
+  searchMode?: 'exact' | 'regex';
   isHighlighted?: boolean;
   isKeyboardSelected?: boolean;
   'data-keyboard-item'?: boolean;
 }
 
 const MessageContent = forwardRef<HTMLDivElement, MessageContentProps>(
-  ({ message, onMessageClick, isSelected, searchQuery, isHighlighted, isKeyboardSelected, ...props }, ref) => {
+  ({ message, onMessageClick, isSelected, searchQuery, searchMode = 'exact', isHighlighted, isKeyboardSelected, ...props }, ref) => {
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(isHighlighted || false);
 
@@ -70,7 +71,7 @@ const MessageContent = forwardRef<HTMLDivElement, MessageContentProps>(
     if (typeof content === "string") {
       const shouldTruncate = !expanded && content.length > 200;
       const displayContent = shouldTruncate ? content.substring(0, 200) + "..." : content;
-      const finalContent = searchQuery ? highlightSearchTerms(displayContent, searchQuery) : displayContent;
+      const finalContent = searchQuery ? highlightSearchTerms(displayContent, searchQuery, searchMode) : displayContent;
       
       return (
         <div>
@@ -107,7 +108,7 @@ const MessageContent = forwardRef<HTMLDivElement, MessageContentProps>(
             if (item.type === "text" && item.text) {
               const shouldTruncate = !expanded && item.text.length > 200;
               const displayContent = shouldTruncate ? item.text.substring(0, 200) + "..." : item.text;
-              const finalContent = searchQuery ? highlightSearchTerms(displayContent, searchQuery) : displayContent;
+              const finalContent = searchQuery ? highlightSearchTerms(displayContent, searchQuery, searchMode) : displayContent;
               
               return (
                 <div key={index}>

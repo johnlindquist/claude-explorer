@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Conversation, ConversationMessage } from "@/lib/types";
 import MessageContent from "@/components/MessageContent";
-import SearchBar from "@/components/SearchBar";
+import SearchBar, { SearchMode } from "@/components/SearchBar";
 import ConversationStatsDisplay from "@/components/ConversationStatsDisplay";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,7 @@ export default function ConversationPage() {
   const [selectedMessage, setSelectedMessage] = useState<ConversationMessage | null>(null);
   const [showJsonPanel, setShowJsonPanel] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchMode, setSearchMode] = useState<SearchMode>('exact');
   const [searchResults, setSearchResults] = useState<Set<string>>(new Set());
   const [searchDuration, setSearchDuration] = useState<number | null>(null);
   const [indexBuildTime, setIndexBuildTime] = useState<number | null>(null);
@@ -114,7 +115,7 @@ export default function ConversationPage() {
   }, [highlightMessageId, loading]);
 
   // Handle search
-  const handleSearch = useCallback((query: string) => {
+  const handleSearch = useCallback((query: string, mode: SearchMode) => {
     if (!searchIndexRef.current) return;
     
     const startTime = performance.now();
@@ -125,6 +126,8 @@ export default function ConversationPage() {
       return;
     }
     
+    // For now, the SimpleSearchIndex doesn't support modes, so we just use it as is
+    // The highlighting will still respect the mode
     const results = searchIndexRef.current.search(query);
     const resultUuids = new Set(results.map(msg => msg.uuid));
     setSearchResults(resultUuids);
@@ -132,6 +135,7 @@ export default function ConversationPage() {
     const endTime = performance.now();
     setSearchDuration(endTime - startTime);
     setSearchQuery(query);
+    setSearchMode(mode);
   }, []);
 
   // Filter messages based on filter mode and search
@@ -459,6 +463,7 @@ export default function ConversationPage() {
                 onMessageClick={handleMessageClick}
                 isSelected={selectedMessage?.uuid === message.uuid}
                 searchQuery={searchQuery}
+                searchMode={searchMode}
                 isHighlighted={message.uuid === highlightMessageId}
                 isKeyboardSelected={selectedMessageIndex === idx}
                 data-keyboard-item

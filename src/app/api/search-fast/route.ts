@@ -22,7 +22,7 @@ interface QuickSearchResult {
 }
 
 // Quick search that only reads lines containing the query
-async function quickSearchProject(projectPath: string, projectId: string, query: string): Promise<QuickSearchResult[]> {
+async function quickSearchProject(projectPath: string, projectId: string, query: string, mode: 'exact' | 'regex' = 'exact'): Promise<QuickSearchResult[]> {
   const files = await fs.readdir(projectPath);
   const jsonlFiles = files.filter(file => file.endsWith('.jsonl'));
   const results: QuickSearchResult[] = [];
@@ -37,7 +37,15 @@ async function quickSearchProject(projectPath: string, projectId: string, query:
   } catch {}
   
   const queryLower = query.toLowerCase();
-  const queryTokens = queryLower.split(/\b/).filter(token => token.trim().length > 0 && /\w/.test(token));
+  let queryTokens: string[] = [];
+  
+  if (mode === 'exact') {
+    // For exact mode, treat the entire query as one token
+    queryTokens = [queryLower.trim()];
+  } else {
+    // For regex mode (partial match), split into tokens
+    queryTokens = queryLower.split(/\b/).filter(token => token.trim().length > 0 && /\w/.test(token));
+  }
   
   // Search each conversation file
   await Promise.all(jsonlFiles.map(async (file) => {
@@ -100,7 +108,17 @@ async function quickSearchProject(projectPath: string, projectId: string, query:
           
           // Check if all query tokens are present
           const textLower = text.toLowerCase();
-          const hasAllTokens = queryTokens.every(token => textLower.includes(token));
+          let hasAllTokens = false;
+          
+          if (mode === 'exact') {
+            // For exact mode, check for exact phrase match with word boundaries
+            const escapedQuery = queryTokens[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const exactRegex = new RegExp(`\\b${escapedQuery}\\b`, 'i');
+            hasAllTokens = exactRegex.test(text);
+          } else {
+            // For regex mode, check if all tokens are present
+            hasAllTokens = queryTokens.every(token => textLower.includes(token));
+          }
           
           if (hasAllTokens) {
             matchCount++;
@@ -149,6 +167,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get('q');
+    const mode = (searchParams.get('mode') || 'exact') as 'exact' | 'regex';
     
     if (!query || !query.trim()) {
       return NextResponse.json({ results: [] });
@@ -171,7 +190,7 @@ export async function GET(request: NextRequest) {
         const projectStats = await fs.stat(projectPath);
         if (!projectStats.isDirectory()) return [];
         
-        return await quickSearchProject(projectPath, projectId, query);
+        return await quickSearchProject(projectPath, projectId, query, mode);
       } catch (error) {
         console.error(`Error searching project ${projectId}:`, error);
         return [];

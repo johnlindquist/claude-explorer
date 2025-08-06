@@ -151,29 +151,40 @@ export class ProjectSearchIndex {
   /**
    * Search the index and return matching conversations with their messages
    */
-  search(query: string): SearchResult[] {
+  search(query: string, mode: 'exact' | 'regex' = 'exact'): SearchResult[] {
     if (!query.trim()) return [];
 
-    const queryTokens = this.tokenize(query);
     const conversationMatches = new Map<string, Set<string>>();
 
     // Search through all entries
     for (const entry of this.entries) {
-      let matches = true;
+      let matches = false;
       
-      // Check if all query tokens are present
-      for (const queryToken of queryTokens) {
-        let found = false;
-        for (const entryToken of entry.tokens) {
-          if (entryToken.includes(queryToken)) {
-            found = true;
+      if (mode === 'exact') {
+        // For exact mode, check for exact phrase match with word boundaries
+        const escapedQuery = query.toLowerCase().trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const exactRegex = new RegExp(`\\b${escapedQuery}\\b`, 'i');
+        matches = exactRegex.test(entry.text);
+      } else {
+        // For regex mode (partial match), use tokenized search
+        const queryTokens = this.tokenize(query);
+        let allTokensFound = true;
+        
+        // Check if all query tokens are present
+        for (const queryToken of queryTokens) {
+          let found = false;
+          for (const entryToken of entry.tokens) {
+            if (entryToken.includes(queryToken)) {
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            allTokensFound = false;
             break;
           }
         }
-        if (!found) {
-          matches = false;
-          break;
-        }
+        matches = allTokensFound;
       }
       
       if (matches) {

@@ -1,22 +1,30 @@
 /**
  * Highlights search terms in text by wrapping them in <mark> tags
  */
-export function highlightSearchTerms(text: string, searchQuery: string): string {
+export function highlightSearchTerms(text: string, searchQuery: string, mode: 'exact' | 'regex' = 'exact'): string {
   if (!searchQuery.trim() || !text) return text;
   
-  // Tokenize the search query
-  const searchTerms = searchQuery.toLowerCase()
-    .split(/\s+/)
-    .filter(term => term.length > 0);
+  let regex: RegExp;
   
-  // Create a regex pattern that matches any of the search terms
-  const pattern = searchTerms
-    .map(term => escapeRegExp(term))
-    .join('|');
-  
-  if (!pattern) return text;
-  
-  const regex = new RegExp(`(${pattern})`, 'gi');
+  if (mode === 'exact') {
+    // For exact mode, escape the entire query and match it as a whole phrase
+    const escapedQuery = escapeRegExp(searchQuery.trim());
+    regex = new RegExp(`\\b(${escapedQuery})\\b`, 'gi');
+  } else {
+    // For regex mode (partial match), tokenize and match any of the terms
+    const searchTerms = searchQuery.toLowerCase()
+      .split(/\s+/)
+      .filter(term => term.length > 0);
+    
+    // Create a regex pattern that matches any of the search terms
+    const pattern = searchTerms
+      .map(term => escapeRegExp(term))
+      .join('|');
+    
+    if (!pattern) return text;
+    
+    regex = new RegExp(`(${pattern})`, 'gi');
+  }
   
   // Replace matches with highlighted version
   return text.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-900 text-inherit rounded px-0.5">$1</mark>');
