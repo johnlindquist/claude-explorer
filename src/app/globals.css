@@ -10,42 +10,43 @@
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
+    /* Soft brand accent (blue-600) */
+    --primary: 221 83% 53%;
     --primary-foreground: 0 0% 98%;
     --secondary: 0 0% 96.1%;
     --secondary-foreground: 0 0% 9%;
     --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
+    --muted-foreground: 0 0% 40%;
     --accent: 0 0% 96.1%;
     --accent-foreground: 0 0% 9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
+    --border: 0 0% 90.5%;
     --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --radius: 0.5rem;
+    --ring: 221 83% 53%;
+    --radius: 0.625rem;
   }
 
   .dark {
-    --background: 0 0% 3.9%;
+    --background: 0 0% 4.5%;
     --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
+    --card: 0 0% 6.5%;
     --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
+    --popover: 0 0% 6.5%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
+    --primary: 221 83% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 12.5%;
     --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 0 0% 12.5%;
     --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 62.8% 40%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
+    --border: 0 0% 15.5%;
+    --input: 0 0% 16%;
+    --ring: 221 83% 60%;
   }
 }
 
@@ -54,6 +55,23 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    /* Subtle header glow */
+    background-image: radial-gradient(600px 300px at 50% -100px, hsl(var(--primary)/0.06), transparent 60%);
+  }
+  ::selection {
+    background-color: hsl(var(--primary)/0.25);
+    color: hsl(var(--primary-foreground));
+  }
+  h1 {
+    @apply tracking-tight leading-tight;
+    text-wrap: balance;
+  }
+  h2 {
+    @apply tracking-tight;
+    text-wrap: balance;
+  }
+  h3 {
+    @apply tracking-tight;
   }
 }

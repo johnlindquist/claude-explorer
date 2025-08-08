@@ -75,7 +75,7 @@ export default function StatsDisplay({ className, compact = false }: StatsDispla
 
   return (
     <div className={cn("space-y-3", className)}>
-      <h3 className="text-sm font-semibold text-muted-foreground">Claude Usage Stats</h3>
+      <h3 className="text-sm font-semibold text-muted-foreground">Claude Usage</h3>
       
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="space-y-1">
@@ -121,12 +121,14 @@ export default function StatsDisplay({ className, compact = false }: StatsDispla
       
       {topTools.length > 0 && (
         <div className="pt-2 border-t">
-          <div className="text-xs text-muted-foreground mb-1">Top Tools:</div>
+          <div className="text-xs text-muted-foreground mb-1">Top Tools</div>
           <div className="space-y-1">
             {topTools.map(([tool, count]) => (
-              <div key={tool} className="flex justify-between text-xs">
-                <span className="text-muted-foreground truncate mr-2">{tool}:</span>
-                <span className="font-medium">{formatNumber(count)}</span>
+              <div key={tool} className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground truncate mr-2">{tool}</span>
+                <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                  {formatNumber(count)}
+                </span>
               </div>
             ))}
           </div>

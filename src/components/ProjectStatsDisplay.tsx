@@ -67,8 +67,8 @@ export default function ProjectStatsDisplay({ projectId, className, onConversati
     .slice(0, 3);
 
   return (
-    <div className={cn("bg-card border rounded-lg p-4 space-y-3", className)}>
-      <h3 className="text-sm font-semibold text-muted-foreground">Project Stats</h3>
+    <div className={cn("bg-card/90 backdrop-blur-sm border rounded-lg p-4 space-y-3 shadow-sm", className)}>
+      <h3 className="text-sm font-semibold text-muted-foreground">Project Overview</h3>
       
       <div className="grid grid-cols-2 gap-3 text-xs">
         <div className="space-y-2">
@@ -111,9 +111,9 @@ export default function ProjectStatsDisplay({ projectId, className, onConversati
           <div className="text-xs text-muted-foreground mb-1">Top Tools</div>
           <div className="space-y-1">
             {topTools.map(([tool, count]) => (
-              <div key={tool} className="flex justify-between text-xs">
+              <div key={tool} className="flex justify-between items-center text-xs">
                 <span className="text-muted-foreground">{tool}</span>
-                <span className="font-medium">{formatNumber(count)}</span>
+                <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">{formatNumber(count)}</span>
               </div>
             ))}
           </div>

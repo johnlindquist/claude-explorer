@@ -26,19 +26,19 @@ async function quickSearchProject(projectPath: string, projectId: string, query:
   const files = await fs.readdir(projectPath);
   const jsonlFiles = files.filter(file => file.endsWith('.jsonl'));
   const results: QuickSearchResult[] = [];
-  
+
   // Get project name
-  let projectName = decodeProjectPath(projectId);
+  let projectName = projectId;
   try {
     const projectInfoPath = path.join(projectPath, 'project.json');
     const projectData = await fs.readFile(projectInfoPath, 'utf-8');
     const projectInfo = JSON.parse(projectData);
-    projectName = projectInfo.name || decodeProjectPath(projectId);
-  } catch {}
-  
+    projectName = projectInfo.name || projectId;
+  } catch { }
+
   const queryLower = query.toLowerCase();
   let queryTokens: string[] = [];
-  
+
   if (mode === 'exact') {
     // For exact mode, treat the entire query as one token
     queryTokens = [queryLower.trim()];
@@ -46,24 +46,24 @@ async function quickSearchProject(projectPath: string, projectId: string, query:
     // For regex mode (partial match), split into tokens
     queryTokens = queryLower.split(/\b/).filter(token => token.trim().length > 0 && /\w/.test(token));
   }
-  
+
   // Search each conversation file
   await Promise.all(jsonlFiles.map(async (file) => {
     try {
       const filePath = path.join(projectPath, file);
       const conversationId = path.basename(file, '.jsonl');
       const matches: QuickSearchResult['firstMatches'] = [];
-      
+
       let summary = null;
       let matchCount = 0;
-      
+
       // Use streaming to read file
       const fileStream = fsSync.createReadStream(filePath);
       const rl = readline.createInterface({
         input: fileStream,
         crlfDelay: Infinity
       });
-      
+
       let i = 0;
       for await (const line of rl) {
         const trimmedLine = line.trim();
@@ -71,21 +71,21 @@ async function quickSearchProject(projectPath: string, projectId: string, query:
           i++;
           continue;
         }
-        
+
         try {
           const data = JSON.parse(trimmedLine);
-          
+
           // Capture summary if present
           if (i === 0 && (data.type === 'conversation.summary' || data.type === 'summary')) {
             summary = data;
           }
-          
+
           // Only search user/assistant/system messages
           if (data.type !== 'user' && data.type !== 'assistant' && data.type !== 'system') {
             i++;
             continue;
           }
-          
+
           // Extract text content
           let text = '';
           if (data.type === 'system' && data.content) {
@@ -100,16 +100,16 @@ async function quickSearchProject(projectPath: string, projectId: string, query:
                 .join(' ');
             }
           }
-          
+
           if (!text) {
             i++;
             continue;
           }
-          
+
           // Check if all query tokens are present
           const textLower = text.toLowerCase();
           let hasAllTokens = false;
-          
+
           if (mode === 'exact') {
             // For exact mode, check for exact phrase match with word boundaries
             const escapedQuery = queryTokens[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -119,17 +119,17 @@ async function quickSearchProject(projectPath: string, projectId: string, query:
             // For regex mode, check if all tokens are present
             hasAllTokens = queryTokens.every(token => textLower.includes(token));
           }
-          
+
           if (hasAllTokens) {
             matchCount++;
-            
+
             if (matches.length < 3) {
               // Extract a preview around the match
               const firstTokenIndex = textLower.indexOf(queryTokens[0]);
               const start = Math.max(0, firstTokenIndex - 50);
               const end = Math.min(text.length, firstTokenIndex + 150);
               const preview = text.substring(start, end);
-              
+
               matches.push({
                 uuid: data.uuid,
                 type: data.type,
@@ -141,10 +141,10 @@ async function quickSearchProject(projectPath: string, projectId: string, query:
         } catch (e) {
           // Skip invalid JSON lines
         }
-        
+
         i++;
       }
-      
+
       if (matchCount > 0) {
         results.push({
           projectId,
@@ -159,7 +159,7 @@ async function quickSearchProject(projectPath: string, projectId: string, query:
       console.error(`Error searching file ${file}:`, error);
     }
   }));
-  
+
   return results;
 }
 
@@ -168,13 +168,13 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get('q');
     const mode = (searchParams.get('mode') || 'exact') as 'exact' | 'regex';
-    
+
     if (!query || !query.trim()) {
       return NextResponse.json({ results: [] });
     }
 
     const projectsDir = path.join(os.homedir(), '.claude', 'projects');
-    
+
     try {
       await fs.access(projectsDir);
     } catch {
@@ -182,27 +182,27 @@ export async function GET(request: NextRequest) {
     }
 
     const projectDirs = await fs.readdir(projectsDir);
-    
+
     // Search all projects in parallel
     const searchPromises = projectDirs.map(async (projectId) => {
       const projectPath = path.join(projectsDir, projectId);
       try {
         const projectStats = await fs.stat(projectPath);
         if (!projectStats.isDirectory()) return [];
-        
+
         return await quickSearchProject(projectPath, projectId, query, mode);
       } catch (error) {
         console.error(`Error searching project ${projectId}:`, error);
         return [];
       }
     });
-    
+
     const projectResults = await Promise.all(searchPromises);
     const allResults = projectResults.flat();
-    
+
     // Sort by match count
     allResults.sort((a, b) => b.matchCount - a.matchCount);
-    
+
     // Convert to expected format and limit
     const formattedResults = allResults.slice(0, 50).map(result => ({
       project: {
@@ -224,8 +224,8 @@ export async function GET(request: NextRequest) {
       })),
       matchCount: result.matchCount
     }));
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       results: formattedResults,
       totalMatches: allResults.reduce((sum, r) => sum + r.matchCount, 0),
       totalConversations: allResults.length,

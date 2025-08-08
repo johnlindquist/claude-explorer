@@ -19,14 +19,14 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get('q');
     const mode = (searchParams.get('mode') || 'exact') as 'exact' | 'regex';
-    
+
     if (!query || !query.trim()) {
       return NextResponse.json({ results: [] });
     }
 
     const projectId = params.projectId;
     const projectPath = path.join(os.homedir(), '.claude', 'projects', projectId);
-    
+
     // Check if project exists
     try {
       await fs.access(projectPath);
@@ -37,21 +37,21 @@ export async function GET(
     // Check cache first
     const cached = indexCache.get(projectId);
     let index: FastProjectSearchIndex;
-    
+
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       index = cached.index;
     } else {
       // Build new index
       const files = await fs.readdir(projectPath);
       const jsonlFiles = files.filter(file => file.endsWith('.jsonl'));
-      
+
       if (jsonlFiles.length === 0) {
         return NextResponse.json({ results: [] });
       }
-      
+
       // Load all conversations using our centralized parser
       const conversations: Conversation[] = [];
-      
+
       await Promise.all(jsonlFiles.map(async (file) => {
         try {
           const filePath = path.join(projectPath, file);
@@ -62,27 +62,27 @@ export async function GET(
           console.error(`Error parsing ${file}:`, error);
         }
       }));
-      
+
       // Build search index
       index = new FastProjectSearchIndex();
       await index.buildIndex(conversations);
-      
+
       // Cache it
       indexCache.set(projectId, { index, timestamp: Date.now() });
     }
-    
+
     // Perform search
     const searchResults = index.search(query, mode);
-    
+
     // Get project name
-    let projectName = decodeProjectPath(projectId);
+    let projectName = projectId;
     try {
       const projectInfoPath = path.join(projectPath, 'project.json');
       const projectData = await fs.readFile(projectInfoPath, 'utf-8');
       const projectInfo = JSON.parse(projectData);
-      projectName = projectInfo.name || decodeProjectPath(projectId);
-    } catch {}
-    
+      projectName = projectInfo.name || projectId;
+    } catch { }
+
     // Format results for frontend (limit data sent)
     const formattedResults = searchResults.map(result => ({
       project: {
@@ -104,8 +104,8 @@ export async function GET(
       })),
       matchCount: result.matchCount
     }));
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       results: formattedResults,
       indexStats: index.getStats()
     });

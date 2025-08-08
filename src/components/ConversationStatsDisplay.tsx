@@ -79,8 +79,8 @@ export default function ConversationStatsDisplay({ conversationId, className, co
   }
 
   return (
-    <div className={cn("bg-card border rounded-lg p-4 space-y-3", className)}>
-      <h3 className="text-sm font-semibold text-muted-foreground">Conversation Stats</h3>
+    <div className={cn("bg-card/90 backdrop-blur-sm border rounded-lg p-4 space-y-3 shadow-sm", className)}>
+      <h3 className="text-sm font-semibold text-muted-foreground">Conversation Overview</h3>
       
       <div className="grid grid-cols-2 gap-3 text-xs">
         <div className="space-y-2">

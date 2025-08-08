@@ -4,9 +4,8 @@
  * @returns The decoded path like "/Users/johnlindquist/dev/claude-hooks"
  */
 export function decodeProjectPath(encodedPath: string): string {
-  // Simply replace all dashes with forward slashes
-  // The encoding is just replacing / with -
-  return encodedPath.replace(/-/g, '/');
+  // Deprecated: returning input unchanged to avoid corrupting IDs that legitimately contain '-'
+  return encodedPath;
 }
 
 /**
@@ -15,6 +14,6 @@ export function decodeProjectPath(encodedPath: string): string {
  * @returns The encoded path like "-Users-johnlindquist-dev-claude-hooks"
  */
 export function encodeProjectPath(path: string): string {
-  // Replace all forward slashes with dashes
-  return path.replace(/\//g, '-');
+  // Deprecated: pass-through to avoid lossy transforms
+  return path;
 }

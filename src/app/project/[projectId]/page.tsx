@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Conversation, Project } from "@/lib/types";
 import Link from "next/link";
 import SearchBar, { SearchMode } from "@/components/SearchBar";
@@ -14,6 +14,8 @@ import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 export default function ProjectPage() {
   const params = useParams();
   const router = useRouter();
+  const pathname = usePathname();
+  const queryParams = useSearchParams();
   const [project, setProject] = useState<Project | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +64,10 @@ export default function ProjectPage() {
       setSearchResults(null);
       setSearchDuration(null);
       setSearchQuery("");
+      const params = new URLSearchParams(queryParams.toString());
+      params.delete('q');
+      params.set('mode', mode);
+      router.replace(`${pathname}?${params.toString()}`);
       return;
     }
     
@@ -83,6 +89,10 @@ export default function ProjectPage() {
     } finally {
       setSearching(false);
     }
+    const params = new URLSearchParams(queryParams.toString());
+    params.set('q', query);
+    params.set('mode', mode);
+    router.replace(`${pathname}?${params.toString()}`);
   }, [params.projectId]);
 
   // Display either search results or all conversations
@@ -127,74 +137,75 @@ export default function ProjectPage() {
   }, [searchQuery, searchResults, resetKeyboardNav]);
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6 flex items-start justify-between gap-6">
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold">Claude Explorer</h1>
-            {project && (
-              <>
-                <h2 className="text-2xl font-semibold mt-2">{project.name}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {conversations.length} conversations
-                </p>
-              </>
-            )}
-            <Link
-              href="/"
-              className="inline-block mt-4 px-4 py-2 text-sm rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80"
-            >
-              ← Change Project
-            </Link>
-          </div>
-          {params.projectId && !loading && (
-            <ProjectStatsDisplay 
-              projectId={params.projectId as string}
-              onConversationClick={(conversationId) => {
-                router.push(`/project/${params.projectId}/conversation/${conversationId}`);
-              }}
-            />
-          )}
-        </div>
-        
-        {/* Search Bar */}
-        {!loading && !error && conversations.length > 0 && (
-          <div className="mb-6">
-            <SearchBar 
-              onSearch={handleSearch}
-              placeholder="Search across all conversations..."
-              className="w-full max-w-2xl mx-auto"
-            />
-            <div className="text-xs text-muted-foreground mt-2 text-center space-y-1">
-              {searching && (
-                <p className="animate-pulse">Searching {conversations.length} conversations...</p>
-              )}
-              {searchQuery && searchDuration !== null && (
-                <p>
-                  Found {searchResults?.length || 0} conversations with matches in {searchDuration.toFixed(2)}ms
-                  {searchResults && searchResults.length > 0 && (
-                    <span> ({searchResults.reduce((sum, r) => sum + r.matchCount, 0)} total matches)</span>
-                  )}
-                </p>
+    <div className="min-h-screen">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <Link href="/" className="text-sm text-muted-foreground hover:underline mr-3 whitespace-nowrap">← Change Project</Link>
+                <h1 className="text-xl font-semibold truncate">{project?.name || 'Claude Explorer'}</h1>
+                <div className="w-24 text-right text-xs text-muted-foreground whitespace-nowrap">{conversations.length} convs</div>
+              </div>
+              {!loading && !error && conversations.length > 0 && (
+                <div className="mt-3">
+                  <SearchBar 
+                    onSearch={handleSearch}
+                    placeholder="Search across all conversations..."
+                    defaultQuery={queryParams.get('q') ?? undefined}
+                    defaultMode={(queryParams.get('mode') as SearchMode | null) ?? undefined}
+                  />
+                  <div className="text-xs text-muted-foreground mt-1 h-5 flex items-center">
+                    {searching ? (
+                      <span className="inline-flex items-center gap-2">
+                        <span className="inline-block w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
+                        Searching {conversations.length} conversations...
+                      </span>
+                    ) : searchQuery && searchDuration !== null ? (
+                      <span>
+                        Found {searchResults?.length || 0} conversations with matches in {searchDuration.toFixed(0)}ms
+                        {searchResults && searchResults.length > 0 && (
+                          <span> ({searchResults.reduce((sum, r) => sum + r.matchCount, 0)} total matches)</span>
+                        )}
+                      </span>
+                    ) : (
+                      <span aria-hidden="true" className="opacity-0">placeholder</span>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
+            {params.projectId && !loading && (
+              <div className="hidden lg:block w-[340px]">
+                <ProjectStatsDisplay 
+                  projectId={params.projectId as string}
+                  onConversationClick={(conversationId) => {
+                    router.push(`/project/${params.projectId}/conversation/${conversationId}`);
+                  }}
+                />
+              </div>
+            )}
           </div>
-        )}
+        </div>
+      </div>
         
-        {loading && (
-          <div className="text-center text-muted-foreground py-8">
-            Loading conversations...
-          </div>
-        )}
+      <div className="max-w-7xl mx-auto px-6 py-8 grid gap-8 lg:grid-cols-[1fr_340px]">
+        <div>
+          {loading && (
+            <div className="text-center text-muted-foreground py-8">
+              Loading conversations...
+            </div>
+          )}
         
-        {error && (
-          <div className="text-center text-destructive py-8">
-            {error}
-          </div>
-        )}
+          {error && (
+            <div className="text-center text-destructive py-8">
+              {error}
+            </div>
+          )}
         
-        {/* Conversation List */}
-        <div className="grid gap-4" ref={listContainerRef}>
+          {/* Conversation List */}
+          <div className="grid gap-4" ref={listContainerRef}>
           {searchResults && searchQuery ? (
             // Show search results
             searchResults.length === 0 ? (
@@ -291,10 +302,25 @@ export default function ProjectPage() {
             </Link>
           ))
           )}
+          </div>
+          
+          {conversations.length === 0 && !loading && !searchQuery && (
+            <p className="text-muted-foreground text-center py-8">No conversations found in this project</p>
+          )}
         </div>
-        
-        {conversations.length === 0 && !loading && !searchQuery && (
-          <p className="text-muted-foreground text-center py-8">No conversations found in this project</p>
+
+        {/* Right sidebar duplicate stats for when header out of view */}
+        {!loading && (
+          <aside className="hidden lg:block">
+            <div className="sticky top-24">
+              <ProjectStatsDisplay 
+                projectId={params.projectId as string}
+                onConversationClick={(conversationId) => {
+                  router.push(`/project/${params.projectId}/conversation/${conversationId}`);
+                }}
+              />
+            </div>
+          </aside>
         )}
       </div>
     </div>
