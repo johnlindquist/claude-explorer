@@ -45,6 +45,8 @@ export default function Home() {
   const [searchDuration, setSearchDuration] = useState<number | null>(null);
   const [selectedItemIndex, setSelectedItemIndex] = useState(-1);
   const listContainerRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     fetch("/api/projects")
@@ -132,6 +134,11 @@ export default function Home() {
       setSearchResults([]);
       setSearchDuration(null);
       setSearchQuery("");
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      setSearching(false);
       // Update URL to clear q but preserve mode
       const params = new URLSearchParams(searchParams.toString());
       params.delete("q");
@@ -140,31 +147,59 @@ export default function Home() {
       return;
     }
 
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const requestId = ++requestIdRef.current;
+
     setSearching(true);
     setSearchQuery(query);
     setSearchMode(mode);
     const startTime = performance.now();
 
     try {
-      const response = await fetch(`/api/search-fast?q=${encodeURIComponent(query)}&mode=${mode}`);
+      const response = await fetch(`/api/search-fast?q=${encodeURIComponent(query)}&mode=${mode}`, { signal: controller.signal });
       if (!response.ok) throw new Error("Search failed");
       
       const data = await response.json();
-      setSearchResults(data.results || []);
+      if (requestId === requestIdRef.current) {
+        setSearchResults(data.results || []);
+      }
       
       const endTime = performance.now();
-      setSearchDuration(endTime - startTime);
+      if (requestId === requestIdRef.current) {
+        setSearchDuration(endTime - startTime);
+      }
     } catch (error) {
-      console.error("Search error:", error);
-      setSearchResults([]);
+      if ((error as any)?.name !== 'AbortError') {
+        console.error("Search error:", error);
+        if (requestId === requestIdRef.current) {
+          setSearchResults([]);
+        }
+      }
     } finally {
-      setSearching(false);
+      if (requestId === requestIdRef.current) {
+        setSearching(false);
+      }
     }
     // Keep URL in sync for shareable searches
     const params = new URLSearchParams(searchParams.toString());
     params.set("q", query);
     params.set("mode", mode);
     router.replace(`${pathname}?${params.toString()}`);
+  }, []);
+
+  const handleQueryChangeImmediate = useCallback((next: string) => {
+    setSearchQuery(next);
+    if (next.trim()) {
+      setSearching(true);
+    } else {
+      setSearching(false);
+      setSearchResults([]);
+      setSearchDuration(null);
+    }
   }, []);
 
   if (loading) {
@@ -177,7 +212,7 @@ export default function Home() {
               <h1 className="text-xl font-semibold whitespace-nowrap">Claude Explorer</h1>
               <div className="flex-1 max-w-3xl">
                 <div className="opacity-70">
-                  <SearchBar onSearch={handleSearch} placeholder="Search across all projects and conversations..." />
+                  <SearchBar onSearch={handleSearch} onQueryChange={handleQueryChangeImmediate} placeholder="Search across all projects and conversations..." />
                 </div>
               </div>
             </div>
@@ -197,7 +232,7 @@ export default function Home() {
             <div className="flex items-center gap-4">
               <h1 className="text-xl font-semibold whitespace-nowrap">Claude Explorer</h1>
               <div className="flex-1 max-w-3xl">
-                <SearchBar onSearch={handleSearch} placeholder="Search across all projects and conversations..." />
+                <SearchBar onSearch={handleSearch} onQueryChange={handleQueryChangeImmediate} placeholder="Search across all projects and conversations..." />
               </div>
             </div>
           </div>
@@ -210,43 +245,49 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* Sticky Header with Search */}
-      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-semibold whitespace-nowrap">Claude Explorer</h1>
-            <div className="flex-1 max-w-3xl">
+          <div className="grid gap-2 md:grid-cols-12 items-center">
+            <h1 className="text-2xl md:text-3xl font-semibold md:col-span-3 col-span-12">Claude Explorer</h1>
+            <div className="md:col-span-6 col-span-12 max-w-3xl">
               <SearchBar 
                 onSearch={handleSearch}
+                onQueryChange={handleQueryChangeImmediate}
                 placeholder="Search across all projects and conversations..."
                 defaultQuery={searchParams.get('q') ?? undefined}
                 defaultMode={(searchParams.get('mode') as SearchMode | null) ?? undefined}
               />
-              <div className="text-xs text-muted-foreground mt-1 h-5 flex items-center">
-                {searching ? (
-                  <span className="inline-flex items-center gap-2">
-                    <span className="inline-block w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
-                    Searching across all projects...
-                  </span>
-                ) : searchDuration !== null ? (
-                  <>
-                    {searchResults.reduce((sum, r) => sum + r.matchCount, 0)} matches across {searchResults.length} conversations ({searchDuration.toFixed(0)}ms)
-                  </>
-                ) : (
-                  <span aria-hidden="true" className="opacity-0">placeholder</span>
-                )}
-              </div>
             </div>
+            <div className="hidden md:block md:col-span-3" />
           </div>
         </div>
       </div>
 
       {/* Main content with sidebar */}
-      <div className="max-w-7xl mx-auto px-6 py-8 grid gap-8 lg:grid-cols-[1fr_320px]">
+      <div className="max-w-7xl mx-auto px-6 py-8 grid gap-8 lg:grid-cols-[3fr_1fr]">
         <div>
           {/* Search Results */}
-          {searchQuery && searchResults.length > 0 && (
+          {searchQuery && (searchResults.length > 0 || searching) && (
             <div className="mb-8">
-              <h2 className="text-xl font-semibold mb-4">Search Results</h2>
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                Search Results
+                <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
+                  {searchResults.length} conversations
+                </span>
+                <span className="hidden md:inline-flex items-center rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-xs font-medium">
+                  {searchResults.reduce((sum, r) => sum + r.matchCount, 0)} matches
+                </span>
+                {searching ? (
+                  <span className="inline-flex items-center rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-xs font-medium">
+                    <span className="inline-block w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin mr-1"></span>
+                    Searching…
+                  </span>
+                ) : (
+                  searchDuration !== null && (
+                    <span className="hidden md:inline text-xs text-muted-foreground">{searchDuration.toFixed(0)}ms</span>
+                  )
+                )}
+              </h2>
               <div className="grid gap-4" ref={listContainerRef}>
               {searchResults.map((result, idx) => {
                 const searchParams = new URLSearchParams({
@@ -259,7 +300,7 @@ export default function Home() {
                     key={`${result.project.id}-${result.conversation.id}-${idx}`}
                     href={`/project/${result.project.id}/conversation/${result.conversation.id}?${searchParams.toString()}`}
                     className={cn(
-                      "bg-card rounded-lg shadow-sm hover:shadow-md transition-all p-6 block border",
+                      "group bg-card rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-6 block border",
                       selectedItemIndex === idx && "ring-2 ring-primary shadow-lg"
                     )}
                     data-keyboard-item
@@ -273,9 +314,11 @@ export default function Home() {
                           {result.conversation.summary.summary}
                         </h3>
                       </div>
-                      <div className="text-sm text-muted-foreground ml-4 text-right">
-                        <div className="text-primary font-medium">{result.matchCount} matches</div>
-                      </div>
+                        <div className="text-sm text-muted-foreground ml-4 text-right">
+                          <div className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
+                            {result.matchCount} matches
+                          </div>
+                        </div>
                     </div>
                     
                     {/* Show preview of matching messages */}
@@ -316,7 +359,7 @@ export default function Home() {
           )}
           
           {/* Project List */}
-          {(!searchQuery || searchResults.length === 0) && (
+          {(!searchQuery || (searchResults.length === 0 && !searching)) && (
             <>
               {projects.length === 0 ? (
                 <div className="p-4 text-center text-muted-foreground">
@@ -331,23 +374,27 @@ export default function Home() {
                         key={project.id}
                         onClick={() => handleProjectSelect(project)}
                         className={cn(
-                          "text-left p-4 rounded-lg border transition-all hover:shadow-md hover:border-primary/50 bg-card border-border",
+                          "group relative text-left p-4 rounded-lg border transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:border-primary/50 bg-card border-border",
                           !searchQuery && selectedItemIndex === idx && "ring-2 ring-primary shadow-lg"
                         )}
                         data-keyboard-item
                       >
+                        <span className="absolute left-0 top-0 bottom-0 w-1 rounded-l bg-transparent group-hover:bg-primary/40 transition-colors" />
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <h3 className="font-medium text-lg">{project.name}</h3>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {project.conversationCount || 0} conversations
-                            </p>
+                            <p className="text-sm text-muted-foreground mt-1">Project</p>
                           </div>
-                          {project.lastModified && (
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(project.lastModified).toLocaleDateString()}
+                          <div className="flex items-center gap-2 ml-4">
+                            <span className="inline-flex items-center rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-xs font-medium">
+                              {(project.conversationCount || 0)} convs
                             </span>
-                          )}
+                            {project.lastModified && (
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                {new Date(project.lastModified).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </button>
                     ))}
@@ -361,7 +408,7 @@ export default function Home() {
         {/* Sidebar */}
         <aside className="hidden lg:block">
           <div className="sticky top-24">
-            <div className="bg-card border rounded-lg p-4">
+            <div className="bg-card/90 backdrop-blur-sm border rounded-lg p-4 shadow-sm">
               <StatsDisplay />
             </div>
           </div>

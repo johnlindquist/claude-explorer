@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import GlobalSearchShortcut from "@/components/GlobalSearchShortcut";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], display: 'swap' });
 
 export const metadata: Metadata = {
   title: "Claude Explorer",
@@ -24,6 +25,7 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
+          <GlobalSearchShortcut />
           {children}
         </ThemeProvider>
       </body>

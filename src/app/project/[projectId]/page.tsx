@@ -27,6 +27,8 @@ export default function ProjectPage() {
   const [searching, setSearching] = useState(false);
   const [selectedItemIndex, setSelectedItemIndex] = useState(-1);
   const listContainerRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     if (params.projectId) {
@@ -64,6 +66,11 @@ export default function ProjectPage() {
       setSearchResults(null);
       setSearchDuration(null);
       setSearchQuery("");
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      setSearching(false);
       const params = new URLSearchParams(queryParams.toString());
       params.delete('q');
       params.set('mode', mode);
@@ -71,29 +78,57 @@ export default function ProjectPage() {
       return;
     }
     
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const requestId = ++requestIdRef.current;
+
     setSearching(true);
     const startTime = performance.now();
     
     try {
-      const response = await fetch(`/api/projects/${params.projectId}/search?q=${encodeURIComponent(query)}&mode=${mode}`);
+      const response = await fetch(`/api/projects/${params.projectId}/search?q=${encodeURIComponent(query)}&mode=${mode}`, { signal: controller.signal });
       const data = await response.json();
-      setSearchResults(data.results);
+      if (requestId === requestIdRef.current) {
+        setSearchResults(data.results);
+      }
       
       const endTime = performance.now();
-      setSearchDuration(endTime - startTime);
-      setSearchQuery(query);
-      setSearchMode(mode);
+      if (requestId === requestIdRef.current) {
+        setSearchDuration(endTime - startTime);
+        setSearchQuery(query);
+        setSearchMode(mode);
+      }
     } catch (error) {
-      console.error("Search failed:", error);
-      setSearchResults(null);
+      if ((error as any)?.name !== 'AbortError') {
+        console.error("Search failed:", error);
+        if (requestId === requestIdRef.current) {
+          setSearchResults(null);
+        }
+      }
     } finally {
-      setSearching(false);
+      if (requestId === requestIdRef.current) {
+        setSearching(false);
+      }
     }
     const params = new URLSearchParams(queryParams.toString());
     params.set('q', query);
     params.set('mode', mode);
     router.replace(`${pathname}?${params.toString()}`);
   }, [params.projectId]);
+
+  const handleQueryChangeImmediate = useCallback((next: string) => {
+    setSearchQuery(next);
+    if (next.trim()) {
+      setSearching(true);
+    } else {
+      setSearching(false);
+      setSearchResults(null);
+      setSearchDuration(null);
+    }
+  }, []);
 
   // Display either search results or all conversations
   const displayConversations = useMemo(() => {
@@ -139,50 +174,22 @@ export default function ProjectPage() {
   return (
     <div className="min-h-screen">
       {/* Sticky header */}
-      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-start justify-between gap-6">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <Link href="/" className="text-sm text-muted-foreground hover:underline mr-3 whitespace-nowrap">← Change Project</Link>
-                <h1 className="text-xl font-semibold truncate">{project?.name || 'Claude Explorer'}</h1>
-                <div className="w-24 text-right text-xs text-muted-foreground whitespace-nowrap">{conversations.length} convs</div>
-              </div>
-              {!loading && !error && conversations.length > 0 && (
-                <div className="mt-3">
-                  <SearchBar 
-                    onSearch={handleSearch}
-                    placeholder="Search across all conversations..."
-                    defaultQuery={queryParams.get('q') ?? undefined}
-                    defaultMode={(queryParams.get('mode') as SearchMode | null) ?? undefined}
-                  />
-                  <div className="text-xs text-muted-foreground mt-1 h-5 flex items-center">
-                    {searching ? (
-                      <span className="inline-flex items-center gap-2">
-                        <span className="inline-block w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
-                        Searching {conversations.length} conversations...
-                      </span>
-                    ) : searchQuery && searchDuration !== null ? (
-                      <span>
-                        Found {searchResults?.length || 0} conversations with matches in {searchDuration.toFixed(0)}ms
-                        {searchResults && searchResults.length > 0 && (
-                          <span> ({searchResults.reduce((sum, r) => sum + r.matchCount, 0)} total matches)</span>
-                        )}
-                      </span>
-                    ) : (
-                      <span aria-hidden="true" className="opacity-0">placeholder</span>
-                    )}
-                  </div>
-                </div>
-              )}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <Link href="/" className="text-sm text-muted-foreground hover:underline whitespace-nowrap">← Change Project</Link>
+              <h1 className="text-2xl md:text-3xl font-semibold truncate flex-1 text-center">{project?.name || 'Claude Explorer'}</h1>
+              <div className="text-xs text-muted-foreground whitespace-nowrap">{conversations.length} convs</div>
             </div>
-            {params.projectId && !loading && (
-              <div className="hidden lg:block w-[340px]">
-                <ProjectStatsDisplay 
-                  projectId={params.projectId as string}
-                  onConversationClick={(conversationId) => {
-                    router.push(`/project/${params.projectId}/conversation/${conversationId}`);
-                  }}
+            {!loading && !error && conversations.length > 0 && (
+              <div className="max-w-3xl mx-auto">
+                <SearchBar 
+                  onSearch={handleSearch}
+                  onQueryChange={handleQueryChangeImmediate}
+                  placeholder="Search across all conversations..."
+                  defaultQuery={queryParams.get('q') ?? undefined}
+                  defaultMode={(queryParams.get('mode') as SearchMode | null) ?? undefined}
                 />
               </div>
             )}
@@ -225,7 +232,7 @@ export default function ProjectPage() {
                   key={result.conversation.id}
                   href={`/project/${params.projectId}/conversation/${result.conversation.id}?${searchParams.toString()}`}
                   className={cn(
-                    "bg-card rounded-lg shadow-sm hover:shadow-md transition-all p-6 block border",
+                    "group bg-card rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-6 block border",
                     selectedItemIndex === idx && "ring-2 ring-primary shadow-lg"
                   )}
                   data-keyboard-item
@@ -235,8 +242,12 @@ export default function ProjectPage() {
                       {result.conversation.summary.summary}
                     </h2>
                     <div className="text-sm text-muted-foreground ml-4 text-right">
-                      <div>{result.conversation.messageCount} messages</div>
-                      <div className="text-primary font-medium">{result.matchCount} matches</div>
+                      <div className="inline-flex items-center rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-xs font-medium">
+                        {result.conversation.messageCount} msgs
+                      </div>
+                      <div className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium ml-2">
+                        {result.matchCount} matches
+                      </div>
                     </div>
                   </div>
                   
@@ -276,23 +287,24 @@ export default function ProjectPage() {
             )
           ) : (
             // Show all conversations
-            conversations.map((conv, idx) => (
+              conversations.map((conv, idx) => (
             <Link
               key={conv.id}
               href={`/project/${params.projectId}/conversation/${conv.id}`}
-              className={cn(
-                "bg-card rounded-lg shadow-sm hover:shadow-md transition-all p-6 block border",
+                className={cn(
+                  "group relative bg-card rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-6 block border",
                 !searchQuery && selectedItemIndex === idx && "ring-2 ring-primary shadow-lg"
               )}
               data-keyboard-item
             >
-              <div className="flex justify-between items-start mb-2">
+                <span className="absolute left-0 top-0 bottom-0 w-1 rounded-l bg-transparent group-hover:bg-primary/40 transition-colors" />
+                <div className="flex justify-between items-start mb-2">
                 <h2 className="text-xl font-semibold flex-1">
                   {conv.summary.summary}
                 </h2>
-                <span className="text-sm text-muted-foreground ml-4">
-                  {conv.messageCount} messages
-                </span>
+                  <span className="inline-flex items-center rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-xs font-medium ml-4">
+                    {conv.messageCount} msgs
+                  </span>
               </div>
               
               <div className="text-sm text-muted-foreground">
