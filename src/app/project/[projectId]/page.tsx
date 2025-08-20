@@ -43,15 +43,17 @@ export default function ProjectPage() {
           }
         });
 
-      // Then load conversations
+      // Then load conversations using search route with empty query
       setLoading(true);
-      fetch(`/api/projects/${params.projectId}/conversations`)
+      fetch(`/api/projects/${params.projectId}/search`)
         .then(res => {
           if (!res.ok) throw new Error("Failed to load conversations");
           return res.json();
         })
         .then(data => {
-          setConversations(data);
+          // Extract conversations from search results format
+          const conversationsFromResults = data.results.map((result: any) => result.conversation);
+          setConversations(conversationsFromResults);
           setLoading(false);
         })
         .catch(err => {
