@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { SimpleSearchIndex } from "@/lib/search-index-simple";
 import { conversationToMarkdown, conversationToSimpleMarkdown } from "@/lib/conversation-markdown";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
+import ResumeConversationButton from "@/components/ResumeConversationButton";
 
 type FilterMode = 'all' | 'tools' | 'sidechains' | 'system' | 'thinking' | 'assistant' | 'user';
 
@@ -401,6 +402,10 @@ export default function ConversationPage() {
             </div>
             
             <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <ResumeConversationButton
+                sessionId={conversation.id}
+              />
+
               <div className="flex items-center gap-2">
                 <button
                   onClick={copyAsMarkdown}

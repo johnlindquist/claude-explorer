@@ -6,6 +6,7 @@ import { Conversation } from "@/lib/types";
 import MessageContent from "@/components/MessageContent";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import ResumeConversationButton from "@/components/ResumeConversationButton";
 
 export default function ConversationPage() {
   const params = useParams();
@@ -161,6 +162,10 @@ export default function ConversationPage() {
             >
               ⚙️ System ({systemMessageCount})
             </button>
+          </div>
+
+          <div className="mt-3">
+            <ResumeConversationButton sessionId={conversation.id} />
           </div>
         </div>
         

@@ -1,0 +1,57 @@
+# Dependencies and package files
+node_modules/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Build outputs and compiled files
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Cache and temporary files
+.cache/
+*.log
+logs/
+tmp/
+temp/
+.turbo/
+
+# Test coverage and reports
+coverage/
+.nyc_output/
+
+# Generated files and documentation
+repomix-output.xml
+*.min.js
+*.min.css
+*.map
+
+# Large data files (conversation logs)
+conversations/
+
+# Environment and IDE files
+.env.local
+.env.production
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Next.js specific
+next-env.d.ts
+
+# Test files
+**/__tests__/
+**/*.test.*
+**/*.spec.*
+
+# Scripts and benchmarks (optional exclusion)
+scripts/benchmark*.ts

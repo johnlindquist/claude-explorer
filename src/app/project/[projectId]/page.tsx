@@ -10,6 +10,7 @@ import ProjectStatsDisplay from "@/components/ProjectStatsDisplay";
 import { cn } from "@/lib/utils";
 import { highlightSearchTerms, extractMessageText } from "@/lib/highlight-utils";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
+import ResumeConversationButton from "@/components/ResumeConversationButton";
 
 export default function ProjectPage() {
   const params = useParams();
@@ -248,6 +249,11 @@ export default function ProjectPage() {
                       <div className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium ml-2">
                         {result.matchCount} matches
                       </div>
+                      <ResumeConversationButton
+                        sessionId={result.conversation.id}
+                        label="Resume"
+                        className="mt-2 inline-flex px-2 py-0.5 text-[11px] bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                      />
                     </div>
                   </div>
                   
@@ -302,9 +308,16 @@ export default function ProjectPage() {
                 <h2 className="text-xl font-semibold flex-1">
                   {conv.summary.summary}
                 </h2>
-                  <span className="inline-flex items-center rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-xs font-medium ml-4">
+                <div className="flex items-center gap-2 ml-4">
+                  <span className="inline-flex items-center rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-xs font-medium">
                     {conv.messageCount} msgs
                   </span>
+                  <ResumeConversationButton
+                    sessionId={conv.id}
+                    label="Resume"
+                    className="inline-flex px-2 py-0.5 text-[11px] bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                  />
+                </div>
               </div>
               
               <div className="text-sm text-muted-foreground">

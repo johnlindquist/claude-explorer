@@ -9,6 +9,7 @@ import StatsDisplay from "@/components/StatsDisplay";
 import { cn } from "@/lib/utils";
 import { highlightSearchTerms, extractMessageText } from "@/lib/highlight-utils";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
+import ResumeConversationButton from "@/components/ResumeConversationButton";
 
 interface SearchResult {
   project: {
@@ -314,11 +315,16 @@ export default function Home() {
                           {result.conversation.summary.summary}
                         </h3>
                       </div>
-                        <div className="text-sm text-muted-foreground ml-4 text-right">
-                          <div className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
-                            {result.matchCount} matches
-                          </div>
+                      <div className="text-sm text-muted-foreground ml-4 text-right">
+                        <div className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
+                          {result.matchCount} matches
                         </div>
+                        <ResumeConversationButton
+                          sessionId={result.conversation.id}
+                          label="Resume"
+                          className="mt-2 inline-flex px-2 py-0.5 text-[11px] bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                        />
+                      </div>
                     </div>
                     
                     {/* Show preview of matching messages */}
