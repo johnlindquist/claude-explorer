@@ -19,13 +19,64 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get('q');
     const mode = (searchParams.get('mode') || 'exact') as 'exact' | 'regex';
+    
+    const projectId = params.projectId;
+    const decodedProjectId = decodeProjectPath(projectId);
+    const projectPath = path.join(os.homedir(), '.claude', 'projects', decodedProjectId);
 
     if (!query || !query.trim()) {
-      return NextResponse.json({ results: [] });
-    }
+      // Return all conversations when no query is provided
+      const files = await fs.readdir(projectPath);
+      const jsonlFiles = files.filter(file => file.endsWith('.jsonl'));
 
-    const projectId = params.projectId;
-    const projectPath = path.join(os.homedir(), '.claude', 'projects', projectId);
+      if (jsonlFiles.length === 0) {
+        return NextResponse.json({ results: [] });
+      }
+
+      const conversations: Conversation[] = [];
+
+      await Promise.all(jsonlFiles.map(async (file) => {
+        try {
+          const filePath = path.join(projectPath, file);
+          const conversation = await parseConversationStream(filePath);
+          conversation.projectId = projectId;
+          conversations.push(conversation);
+        } catch (error) {
+          console.error(`Error parsing ${file}:`, error);
+        }
+      }));
+
+      // Get project name
+      let projectName = decodedProjectId;
+      try {
+        const projectInfoPath = path.join(projectPath, 'project.json');
+        const projectData = await fs.readFile(projectInfoPath, 'utf-8');
+        const projectInfo = JSON.parse(projectData);
+        projectName = projectInfo.name || decodedProjectId;
+      } catch { }
+
+      // Format results for frontend (limit data sent)
+      const formattedResults = conversations.map(conversation => ({
+        project: {
+          id: projectId,
+          name: projectName
+        },
+        conversation: {
+          id: conversation.id,
+          summary: conversation.summary,
+          messageCount: conversation.messageCount,
+          lastUpdated: conversation.lastUpdated,
+          projectId: conversation.projectId
+        },
+        matchingMessages: [], // No matches since no search query
+        matchCount: 0
+      }));
+
+      return NextResponse.json({
+        results: formattedResults,
+        indexStats: { totalConversations: conversations.length, totalMessages: 0 }
+      });
+    }
 
     // Check if project exists
     try {
@@ -35,7 +86,7 @@ export async function GET(
     }
 
     // Check cache first
-    const cached = indexCache.get(projectId);
+    const cached = indexCache.get(decodedProjectId);
     let index: FastProjectSearchIndex;
 
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -68,19 +119,19 @@ export async function GET(
       await index.buildIndex(conversations);
 
       // Cache it
-      indexCache.set(projectId, { index, timestamp: Date.now() });
+      indexCache.set(decodedProjectId, { index, timestamp: Date.now() });
     }
 
     // Perform search
     const searchResults = index.search(query, mode);
 
     // Get project name
-    let projectName = projectId;
+    let projectName = decodedProjectId;
     try {
       const projectInfoPath = path.join(projectPath, 'project.json');
       const projectData = await fs.readFile(projectInfoPath, 'utf-8');
       const projectInfo = JSON.parse(projectData);
-      projectName = projectInfo.name || projectId;
+      projectName = projectInfo.name || decodedProjectId;
     } catch { }
 
     // Format results for frontend (limit data sent)
