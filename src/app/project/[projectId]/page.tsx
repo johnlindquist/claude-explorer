@@ -74,10 +74,10 @@ export default function ProjectPage() {
         abortControllerRef.current = null;
       }
       setSearching(false);
-      const params = new URLSearchParams(queryParams.toString());
-      params.delete('q');
-      params.set('mode', mode);
-      router.replace(`${pathname}?${params.toString()}`);
+      const urlParams = new URLSearchParams(queryParams.toString());
+      urlParams.delete('q');
+      urlParams.set('mode', mode);
+      router.replace(`${pathname}?${urlParams.toString()}`);
       return;
     }
     
@@ -116,10 +116,10 @@ export default function ProjectPage() {
         setSearching(false);
       }
     }
-    const params = new URLSearchParams(queryParams.toString());
-    params.set('q', query);
-    params.set('mode', mode);
-    router.replace(`${pathname}?${params.toString()}`);
+    const urlParams = new URLSearchParams(queryParams.toString());
+    urlParams.set('q', query);
+    urlParams.set('mode', mode);
+    router.replace(`${pathname}?${urlParams.toString()}`);
   }, [params.projectId]);
 
   const handleQueryChangeImmediate = useCallback((next: string) => {
